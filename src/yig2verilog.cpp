@@ -76,7 +76,7 @@ int main(int argc, char *argv[]){
 				break;
 			default: //aigs -> yigs
 				//cout << str << " " << buflen << " " << cnt << endl;
-				char a1[8], a2[8], op[8], a3[8];
+				char a1[10], a2[10], op[10], a3[10];
 				int success = sscanf(str.c_str(),"%*s %s %*s %s %s %s",a1, a2, op, a3);
 				string A1(a1);
 				string A2(a2);

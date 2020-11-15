@@ -136,13 +136,15 @@ int main(int argc, char *argv[]){
 
 void parse_arg(yig *y, string a, int input_pos){
     string s = a;
+	y->print = true;
     if (s[0] == '~') {
         y->pol[input_pos] = true;
         s = a.substr(1,a.size()-1);
     }
 	y->inp[input_pos] = s; //.substr(1,s.size());; // we need to keep track of if index is a wire or primary input
     if (s[0] == 'n'){ //wire
-        y->inp[input_pos] = "w" + s.substr(1,s.size()-1);
+		string wire_id = to_string(std::atoi(s.substr(1,s.size()-1).c_str()) - num_inputs - num_outputs - 2);
+        y->inp[input_pos] = "w" + wire_id;
     }
     else if (s[0] == 'p') { //input
         y->inp[input_pos] = s.substr(1,s.size()-1);

@@ -15,67 +15,54 @@ yig* output_list;
 
 void parse_arg(yig* y,string a,int id); //update yig pass-by-ptr
 //some sort of DFS optimization per output?
+void print_yig(yig *y, ofstream &outfile, int id, char type);
 
 int main(int argc, char *argv[]){
 	if (argc!=3){
 		cout << "Usage: ./yig2verilog <input benchmark> <output file name>" << endl;
 		return 1;
 	}
-	//cout << argv[1] << endl;
 	string str;
 	ifstream file_in(argv[1], ifstream::in);
 	ofstream outfile;
 	outfile.open(argv[2]);
 	int cnt = 0;
 	while(getline(file_in,str)){
-		//cout << str << endl;
 		int buflen = str.size();
-		//cout << str << " " << buflen << " " << cnt << endl;
-		//cout << str[buflen-1] << endl;
 		if (str[buflen-1]!=';') {
 			//cout << str[buflen-1] << endl;
 			continue;
 		}
 		else {
 			switch(cnt){
-			case 0: //cout << "This was the first module ;" << endl; break;
+			case 0: 
 			case 1: //input
-				//cout << str << " " << buflen << " " << cnt << endl;
 				for (int i = buflen-1; i>0; i--){
 					if(str[i] == 'i'){//find last entry and take index
 						num_inputs = std::atoi(str.substr(i+1,buflen-i-1).c_str())+1;
-						//cout << i << " " << atoi(str.substr(i+1,buflen-i-1).c_str())+1 << endl;
-						outfile << ".i " << num_inputs << "\n";
 						break;
 					} 
 				}
 				break;
 			case 2: //output
-				//cout << str << " " << buflen << " " << cnt << endl;
 				for (int i = buflen-1; i>0; i--){
 					if(str[i] == 'o'){ //find last entry and take index
 						num_outputs = std::atoi(str.substr(i+1,buflen-i-1).c_str())+1;
 						output_list = new yig [num_outputs]; //generate space for outputs
-						//cout << i << " " << atoi(str.substr(i+1,buflen-i-1).c_str())+1 << endl;
-                        outfile << ".o " << num_outputs << "\n";
 						break;
 					} 
 				}
 				break;
 			case 3: //wire
-				//cout << str << " " << buflen << " " << cnt << endl;
 				for (int i = buflen-1; i>0; i--){
 					if(str[i] == 'n'){//find last entry and take index
 						num_wires = std::atoi(str.substr(i+1,buflen-i-1).c_str())-num_outputs-num_inputs; 
 						wire_list = new yig [num_wires]; //generate space for the YIGs to build in
-						//cout << i << " " << atoi(str.substr(i+1,buflen-i-1).c_str())+1 << endl;
-                        outfile << ".w " << num_wires << "\n";
 					break;
 					}
 				}
 				break;
 			default: //aigs -> yigs
-				//cout << str << " " << buflen << " " << cnt << endl;
 				char a1[10], a2[10], op[10], a3[10];
 				int success = sscanf(str.c_str(),"%*s %s %*s %s %s %s",a1, a2, op, a3);
 				string A1(a1);
@@ -113,7 +100,21 @@ int main(int argc, char *argv[]){
 		}
 		
 	}
-	//cout << "num wires: " << num_wires << " num inputs " << num_inputs << " num outputs " << num_outputs << endl;
+
+// Write out YIG Graph
+	outfile << ".i " << num_inputs << "\n";
+	outfile << ".o " << num_outputs << "\n";
+	outfile << ".w " << num_wires << "\n"; // TODO fix num_wires once we implement optimizations
+	for (int i = 0; i < num_wires; i++) {
+		if (wire_list[i].print) {
+			print_yig(&wire_list[i], outfile, i, 'w');
+		}
+	}
+    for (int i = 0; i < num_outputs; i++) {
+        print_yig(&output_list[i], outfile, i, 'o');
+    }
+    outfile << ".e ";
+
 	outfile.close();
 	delete output_list;
 	delete wire_list;	
@@ -131,4 +132,20 @@ void parse_arg(yig *y, string a, int id){
     else{ //input
         y->inp[id] = std::atoi(s.substr(2,s.size()-1).c_str());
     }
+}
+
+void print_yig(yig *y, ofstream &outfile, int id, char type) {
+	switch(y->size) {
+	case 0:
+		outfile << type << id << " = Y0(" 
+			<< y->pol[0] << y->inp[1] << ");\n";
+		break;
+	case 1:
+		outfile << type << id << " = Y1(" 
+			<< y->pol[0] << y->inp[0] << ", " 
+			<< y->pol[1] << y->inp[1] << ", " 
+			<< y->pol[2] << y->inp[2] << ");\n"; 
+		break;
+	}
+	// TODO other cases...
 }

@@ -1,5 +1,9 @@
+#include <string>
+using std::string;
+
 struct yig {
-	short inp[3]; //indices of inp or wires
+	string inp[3]; //indices of inp or wires
+	short id;
 	bool pol[3]; // true if inverted
 	short size; // size of top YIG; if 0, just a wire, if 1, MIG. Build larger ones recursively
 	bool print = true; //do not print if true

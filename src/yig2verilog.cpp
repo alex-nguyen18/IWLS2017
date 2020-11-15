@@ -27,6 +27,8 @@ int main(int argc, char *argv[]){
 	ofstream outfile;
 	outfile.open(argv[2]);
 	int cnt = 0;
+	int w_index = 0;
+    int o_index = 0;
 	while(getline(file_in,str)){
 		int buflen = str.size();
 		if (str[buflen-1]!=';') {
@@ -73,26 +75,38 @@ int main(int argc, char *argv[]){
 				if (success == 4){ // "assign A1 = A2 OP A3;"
 					A3 = A3.substr(0,A3.size()-1); // remove semicolon on A3
 					int id;
-					if (A1[0]=='n')
-						id = std::atoi(A1.substr(1,A1.size()-1).c_str()) - num_inputs - num_outputs - 1; 
-					else if (A1[0]=='p')
-						id = std::atoi(A1.substr(2,A1.size()-1).c_str()) + num_inputs; 
-					wire_list[id].size = 1;
-					parse_arg(&wire_list[id],A2,1);
-					parse_arg(&wire_list[id],A3,2);
-					wire_list[id].inp[2] = -1;
-					wire_list[id].pol[2] = (OP == "|"); //if or, 3rd input is 1; if and, 3rd input is 0
+					if (A1[0]=='n') {
+						id = std::atoi(A1.substr(1,A1.size()-1).c_str()) - num_inputs - num_outputs - 2;
+                    	wire_list[id].size = 1;
+                    	parse_arg(&wire_list[id],A2,0);
+                    	parse_arg(&wire_list[id],A3,1);
+                    	wire_list[id].inp[2] = "0";
+                    	//wire_list[id].pol[2] = (OP == "|"); //if or, 3rd input is 1; if and, 3rd input is 0 
+					} else if (A1[0]=='p') {
+						id = std::atoi(A1.substr(2,A1.size()-1).c_str()); 
+						output_list[id].size = 1;
+						parse_arg(&output_list[id],A2,0);
+						parse_arg(&output_list[id],A3,1);
+						output_list[id].inp[2] = "0";
+						//output_list[id].pol[2] = (OP == "|"); //if or, 3rd input is 1; if and, 3rd input is 0
+					}
 				} 
 				else if (success == 2){ // "assign A1 = A2;" Note A2 can be '1'bx'; //probably will never call this, but just in case
 					A2 = A2.substr(0,A2.size()-1);
 					int id;
-                    if (A1[0]=='n')
-                        id = std::atoi(A1.substr(1,A1.size()-1).c_str()) - num_inputs - num_outputs - 1;
-                    else if (A1[0]=='p')
-                        id = std::atoi(A1.substr(2,A1.size()-1).c_str()) + num_inputs;
-					id = std::atoi(A1.substr(1,A1.size()-1).c_str()) + num_inputs; 
-					wire_list[id].size = 0;
-					parse_arg(&wire_list[id],A2,1);
+                    if (A1[0]=='n') {
+                        id = std::atoi(A1.substr(1,A1.size()-1).c_str()) - num_inputs - num_outputs - 2;
+                    	wire_list[id].size = 0;
+						parse_arg(&wire_list[id],A2,0);
+                        wire_list[id].inp[1] = "0";
+                        wire_list[id].inp[2] = "0";
+                    } else if (A1[0]=='p') {
+                        id = std::atoi(A1.substr(2,A1.size()-1).c_str());
+						output_list[id].size = 0;
+						parse_arg(&output_list[id],A2,0);
+                        output_list[id].inp[1] = "0";
+                        output_list[id].inp[2] = "0";
+					}
 				}
 			}
 			cnt++;
@@ -120,31 +134,39 @@ int main(int argc, char *argv[]){
 	delete wire_list;	
 }
 
-void parse_arg(yig *y, string a, int id){
+void parse_arg(yig *y, string a, int input_pos){
     string s = a;
     if (s[0] == '~') {
-        y->pol[id] = true;
+        y->pol[input_pos] = true;
         s = a.substr(1,a.size()-1);
     }
+	y->inp[input_pos] = s; //.substr(1,s.size());; // we need to keep track of if index is a wire or primary input
     if (s[0] == 'n'){ //wire
-        y->inp[id] = atoi(s.substr(1,s.size()-1).c_str());
+        y->inp[input_pos] = "w" + s.substr(1,s.size()-1);
     }
-    else{ //input
-        y->inp[id] = std::atoi(s.substr(2,s.size()-1).c_str());
+    else if (s[0] == 'p') { //input
+        y->inp[input_pos] = s.substr(1,s.size()-1);
     }
+	else { // constant
+		y->inp[input_pos] = s.substr(3,s.size()-1);
+	}
 }
 
 void print_yig(yig *y, ofstream &outfile, int id, char type) {
 	switch(y->size) {
 	case 0:
-		outfile << type << id << " = Y0(" 
-			<< y->pol[0] << y->inp[1] << ");\n";
+		outfile << type << id << " = Y0(";
+		if (y->pol[0]) outfile << '~';
+		outfile << y->inp[0] << ");\n";
 		break;
 	case 1:
-		outfile << type << id << " = Y1(" 
-			<< y->pol[0] << y->inp[0] << ", " 
-			<< y->pol[1] << y->inp[1] << ", " 
-			<< y->pol[2] << y->inp[2] << ");\n"; 
+		outfile << type << id << " = Y1(";
+		if (y->pol[0]) outfile << '~';
+		outfile << y->inp[0] << ", " ;
+		if (y->pol[1]) outfile << '~';
+		outfile << y->inp[1] << ", " ;
+		if (y->pol[2]) outfile << '~'; 
+		outfile << y->inp[2] << ");\n"; 
 		break;
 	}
 	// TODO other cases...

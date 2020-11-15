@@ -1,0 +1,24 @@
+\I\X7:Find \PB{$\K$} separator\X
+\U4.
+\I\X4:Parse and transform YIG\X
+\U2.
+\I\X6:Parse command\X
+\U4.
+\I\X9:Parse left-hand side\X
+\U4.
+\I\X10:Parse right-hand side\X
+\U4.
+\I\X14:Print Verilog assignment\X
+\U10.
+\I\X16:Print Verilog footer\X
+\U4.
+\I\X12:Print Verilog header, if it's the first time\X
+\U4.
+\I\X3:Process the command line\X
+\U2.
+\I\X8:Split string\X
+\U4.
+\I\X11, 13, 15:Subroutines\X
+\U2.
+\I\X5:Trim \PB{\\{buf}}\X
+\U4.

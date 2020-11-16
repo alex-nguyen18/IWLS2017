@@ -77,7 +77,7 @@ int main(int argc, char *argv[]){
 				string A2(a2);
 				string OP(op);
 				string A3(a3);
-				
+				cout << A1 << ";" << A2 << ";" << endl;
 				if (success == 4){ // "assign A1 = A2 OP A3;"
 					A3 = A3.substr(0,A3.size()-1); // remove semicolon on A3
 					int id;
@@ -121,3 +121,4 @@ void parse_arg(yig *y, string a, int id){
         y->inp[id] = std::atoi(s.substr(2,s.size()-1).c_str());
     }
 }
+

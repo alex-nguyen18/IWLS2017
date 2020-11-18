@@ -80,13 +80,13 @@ int main(int argc, char *argv[]){
                     	wire_list[id].size = 1;
                     	parse_arg(&wire_list[id],A2,0);
                     	parse_arg(&wire_list[id],A3,1);
-                    	wire_list[id].pol[2] = (OP == "|"); //if or, 3rd input is 1; if and, 3rd input is 0 
+                    	wire_list[id].pol[2] = (OP == "|" ? 1:0); //if or, 3rd input is 1; if and, 3rd input is 0 
 					} else if (A1[0]=='p') {
 						id = std::atoi(A1.substr(2,A1.size()-1).c_str()); 
 						output_list[id].size = 1;
 						parse_arg(&output_list[id],A2,0);
 						parse_arg(&output_list[id],A3,1);
-						output_list[id].pol[2] = (OP == "|"); //if or, 3rd input is 1; if and, 3rd input is 0
+						output_list[id].pol[2] = (OP == "|" ? 1:0); //if or, 3rd input is 1; if and, 3rd input is 0
 					}
 				} 
 				else if (success == 2){ // "assign A1 = A2;" Note A2 can be '1'bx'; //probably will never call this, but just in case
@@ -128,8 +128,8 @@ int main(int argc, char *argv[]){
     outfile << ".e ";
 
 	outfile.close();
-	//delete[] output_list;
-	//delete[] wire_list;	
+	delete[] output_list;
+	delete[] wire_list;	
 }
 
 void parse_arg(yig *y, string a, int input_pos){
@@ -171,3 +171,15 @@ void print_yig(yig *y, ofstream &outfile, int id, char type) {
 	}
 	// TODO other cases...
 }
+/*
+print_yig (yig *y){
+	yig_value *yval = y->yv;
+	for(int i=0; i==y->size; i++) {
+		outfile << y->ygraph_vals[i] << ", ";
+		for(int j=0; j<i; j++) {
+			outfile << "0, ";
+		}
+		yval = yval->yv;
+	}
+}
+*/

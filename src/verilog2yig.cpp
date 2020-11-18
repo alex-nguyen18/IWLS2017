@@ -80,15 +80,13 @@ int main(int argc, char *argv[]){
                     	wire_list[id].size = 1;
                     	parse_arg(&wire_list[id],A2,0);
                     	parse_arg(&wire_list[id],A3,1);
-                    	wire_list[id].inp[2] = "0";
-                    	//wire_list[id].pol[2] = (OP == "|"); //if or, 3rd input is 1; if and, 3rd input is 0 
+                    	wire_list[id].pol[2] = (OP == "|"); //if or, 3rd input is 1; if and, 3rd input is 0 
 					} else if (A1[0]=='p') {
 						id = std::atoi(A1.substr(2,A1.size()-1).c_str()); 
 						output_list[id].size = 1;
 						parse_arg(&output_list[id],A2,0);
 						parse_arg(&output_list[id],A3,1);
-						output_list[id].inp[2] = "0";
-						//output_list[id].pol[2] = (OP == "|"); //if or, 3rd input is 1; if and, 3rd input is 0
+						output_list[id].pol[2] = (OP == "|"); //if or, 3rd input is 1; if and, 3rd input is 0
 					}
 				} 
 				else if (success == 2){ // "assign A1 = A2;" Note A2 can be '1'bx'; //probably will never call this, but just in case
@@ -98,14 +96,14 @@ int main(int argc, char *argv[]){
                         id = std::atoi(A1.substr(1,A1.size()-1).c_str()) - num_inputs - num_outputs - 2;
                     	wire_list[id].size = 0;
 						parse_arg(&wire_list[id],A2,0);
-                        wire_list[id].inp[1] = "0";
-                        wire_list[id].inp[2] = "0";
+                        strcpy(wire_list[id].inp[1], "0");
+                        strcpy(wire_list[id].inp[2], "0");
                     } else if (A1[0]=='p') {
                         id = std::atoi(A1.substr(2,A1.size()-1).c_str());
 						output_list[id].size = 0;
 						parse_arg(&output_list[id],A2,0);
-                        output_list[id].inp[1] = "0";
-                        output_list[id].inp[2] = "0";
+                        strcpy(output_list[id].inp[1], "0");
+                        strcpy(output_list[id].inp[2], "0");
 					}
 				}
 			}
@@ -130,8 +128,8 @@ int main(int argc, char *argv[]){
     outfile << ".e ";
 
 	outfile.close();
-	delete output_list;
-	delete wire_list;	
+	//delete[] output_list;
+	//delete[] wire_list;	
 }
 
 void parse_arg(yig *y, string a, int input_pos){
@@ -141,16 +139,16 @@ void parse_arg(yig *y, string a, int input_pos){
         y->pol[input_pos] = true;
         s = a.substr(1,a.size()-1);
     }
-	y->inp[input_pos] = s; //.substr(1,s.size());; // we need to keep track of if index is a wire or primary input
+	strcpy(y->inp[input_pos], s.c_str()); 
     if (s[0] == 'n'){ //wire
-		string wire_id = to_string(std::atoi(s.substr(1,s.size()-1).c_str()) - num_inputs - num_outputs - 2);
-        y->inp[input_pos] = "w" + wire_id;
+		string wire_id = "w" + to_string(std::atoi(s.substr(1,s.size()-1).c_str()) - num_inputs - num_outputs - 2);
+        strcpy(y->inp[input_pos], wire_id.c_str());
     }
     else if (s[0] == 'p') { //input
-        y->inp[input_pos] = s.substr(1,s.size()-1);
+        strcpy(y->inp[input_pos], s.substr(1,s.size()-1).c_str());
     }
 	else { // constant
-		y->inp[input_pos] = s.substr(3,s.size()-1);
+		strcpy(y->inp[input_pos], s.substr(3,s.size()-1).c_str());
 	}
 }
 

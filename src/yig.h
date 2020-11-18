@@ -2,7 +2,7 @@
 using std::string;
 
 struct yig {
-	string inp[3]; //indices of inp or wires
+	char inp[3][10]; //indices of inp or wires
 	short id;
 	bool pol[3]; // true if inverted
 	short size; // size of top YIG; if 0, just a wire, if 1, MIG. Build larger ones recursively

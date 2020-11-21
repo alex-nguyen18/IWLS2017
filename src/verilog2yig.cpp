@@ -90,12 +90,24 @@ int main(int argc, char *argv[]){
                     	parse_arg(&wire_list[id],A2,0);
                     	parse_arg(&wire_list[id],A3,1);
                     	strcpy(wire_list[id].inp[2], (OP == "|") ? "1":"0"); //if or, 3rd input is 1; if and, 3rd input is 0 
+						wire_list[id].and_func = (OP == "&");
+
+						wire_list[id].yv= new yig_value;
+						strcpy(wire_list[id].yv->inp, wire_list[id].inp[0]);
+                    	wire_list[id].yv->yv = new yig_value;
+                    	strcpy(wire_list[id].yv->yv->inp, wire_list[id].inp[1]);
 					} else if (A1[0]=='p') {
 						id = std::atoi(A1.substr(2,A1.size()-1).c_str()); 
 						output_list[id].size = 1;
 						parse_arg(&output_list[id],A2,0);
 						parse_arg(&output_list[id],A3,1);
 						strcpy(output_list[id].inp[2], (OP == "|") ? "1":"0"); //if or, 3rd input is 1; if and, 3rd input is 0
+						output_list[id].and_func = (OP == "&");
+
+                    	output_list[id].yv= new yig_value;
+                    	strcpy(output_list[id].yv->inp, output_list[id].inp[0]);
+                    	output_list[id].yv->yv = new yig_value;
+                    	strcpy(output_list[id].yv->yv->inp, output_list[id].inp[1]);
 					}
 				} 
 				else if (success == 2){ // "assign A1 = A2;" Note A2 can be '1'bx'; //probably will never call this, but just in case
@@ -107,12 +119,18 @@ int main(int argc, char *argv[]){
 						parse_arg(&wire_list[id],A2,0);
                         strcpy(wire_list[id].inp[1], "0");
                         strcpy(wire_list[id].inp[2], "0");
+
+                        wire_list[id].yv= new yig_value;
+                        strcpy(wire_list[id].yv->inp, wire_list[id].inp[0]);
                     } else if (A1[0]=='p') {
                         id = std::atoi(A1.substr(2,A1.size()-1).c_str());
 						output_list[id].size = 0;
 						parse_arg(&output_list[id],A2,0);
                         strcpy(output_list[id].inp[1], "0");
                         strcpy(output_list[id].inp[2], "0");
+
+                        output_list[id].yv= new yig_value;
+                        strcpy(output_list[id].yv->inp, output_list[id].inp[0]);
 					}
 				}
 			}
@@ -141,26 +159,46 @@ int main(int argc, char *argv[]){
 	delete[] wire_list;	
 }
 
+void build_yv(yig *y) {
+	if(y->pol[0] && y->and_func && (y->y[0] != NULL)) {
+		build_yv(y->y[0]);
+		y->yv=y->y[0]->yv;
+	} 
+	if(y->pol[1] && y->and_func && (y->y[1] != NULL)) {
+        build_yv(y->y[1]);
+        y->yv=y->y[1]->yv;
+    }
+	
+}
+
 void parse_arg(yig *y, string a, int input_pos){
     string s = a;
 	y->print = true;
     if (s[0] == '~') {
-        y->pol[input_pos] = true;
+        y->pol[input_pos] = false;
         s = a.substr(1,a.size()-1);
-    }
+    } else {y->pol[input_pos] = true;}
 	strcpy(y->inp[input_pos], s.c_str()); 
     if (s[0] == 'n'){ //wire
-		string wire_id = "w" + to_string(std::atoi(s.substr(1,s.size()-1).c_str()) - start_wires);
-        strcpy(y->inp[input_pos], wire_id.c_str());
+		int wire_id = std::atoi(s.substr(1,s.size()-1).c_str()) - start_wires;
+		string wire_string = "w" + to_string(wire_id);
+		if(!y->pol[input_pos]) wire_string = "~" + wire_string;
+        strcpy(y->inp[input_pos], wire_string.c_str());
+		y->y[input_pos] = &wire_list[wire_id];
+		wire_list[wire_id].fanout++;
     }
     else if (s[0] == 'p') { //input
-        strcpy(y->inp[input_pos], s.substr(1,s.size()-1).c_str());
+		if (y->pol[input_pos]) {strcpy(y->inp[input_pos], s.substr(1,s.size()-1).c_str());}
+		else {
+			string input_string = "~" + s.substr(1,s.size()-1);
+			strcpy(y->inp[input_pos], input_string.c_str());
+		}
     }
 	else { // constant
 		strcpy(y->inp[input_pos], s.substr(3,s.size()-1).c_str());
 	}
 }
-
+/*
 void print_yig(yig *y, ofstream &outfile, int id, char type) {
 	switch(y->size) {
 	case 0:
@@ -175,20 +213,24 @@ void print_yig(yig *y, ofstream &outfile, int id, char type) {
 		if (y->pol[1]) outfile << '~';
 		outfile << y->inp[1] << ", " ;
 		if (y->pol[2]) outfile << '~'; 
-		outfile << y->inp[2] << ");\n"; 
+		outfile << y->inp[2] << "); fanout: " << y->fanout << "\n";
 		break;
 	}
 	// TODO other cases...
 }
-/*
-print_yig (yig *y){
+*/
+void print_yig (yig *y, ofstream &outfile, int id, char type){
 	yig_value *yval = y->yv;
-	for(int i=0; i==y->size; i++) {
-		outfile << y->ygraph_vals[i] << ", ";
+	outfile << type << id << " = Y" << y->size << "(";
+	for(int i=0; i<=y->size; i++) {
+		outfile << yval->inp;
 		for(int j=0; j<i; j++) {
-			outfile << "0, ";
+			if (y->and_func) outfile << ", 0";
+			else outfile << ", 1";
 		}
+		if (i==y->size) outfile << ");\n";
+		else outfile << ", ";
 		yval = yval->yv;
 	}
 }
-*/
+

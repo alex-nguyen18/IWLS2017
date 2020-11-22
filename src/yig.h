@@ -17,4 +17,5 @@ struct yig {
 	yig* y[3]; // pointers to constituent YIGs so we have access to their inputs
 	int fanout = 0;
 	bool and_func; // true if an AND 
+	int checked_by=0; // needed in cases of feedback loops
 };

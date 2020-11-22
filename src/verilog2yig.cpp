@@ -18,6 +18,7 @@ yig* output_list;
 void parse_arg(yig* y,string a,int id); //update yig pass-by-ptr
 //some sort of DFS optimization per output?
 void print_yig(yig *y, ofstream &outfile, int id, char type);
+int build_yv(yig *y);
 
 int main(int argc, char *argv[]){
 	if (argc!=3){
@@ -67,7 +68,7 @@ int main(int argc, char *argv[]){
 			case 3: //wire
 				for (int i = buflen-1; i>0; i--){
 					if(str[i] == 'n'){//find last entry and take index
-						num_wires = std::atoi(str.substr(i+1,buflen-i-1).c_str())-start_wires; 
+						num_wires = std::atoi(str.substr(i+1,buflen-i-1).c_str())-start_wires + 1; 
 						wire_list = new yig [num_wires]; //generate space for the YIGs to build in
 					break;
 					}
@@ -86,6 +87,7 @@ int main(int argc, char *argv[]){
 					int id;
 					if (A1[0]=='n') {
 						id = std::atoi(A1.substr(1,A1.size()-1).c_str()) - start_wires;
+						wire_list[id].id = id;
                     	wire_list[id].size = 1;
                     	parse_arg(&wire_list[id],A2,0);
                     	parse_arg(&wire_list[id],A3,1);
@@ -98,6 +100,7 @@ int main(int argc, char *argv[]){
                     	strcpy(wire_list[id].yv->yv->inp, wire_list[id].inp[1]);
 					} else if (A1[0]=='p') {
 						id = std::atoi(A1.substr(2,A1.size()-1).c_str()); 
+						output_list[id].id = id;
 						output_list[id].size = 1;
 						parse_arg(&output_list[id],A2,0);
 						parse_arg(&output_list[id],A3,1);
@@ -115,6 +118,7 @@ int main(int argc, char *argv[]){
 					int id;
                     if (A1[0]=='n') {
                         id = std::atoi(A1.substr(1,A1.size()-1).c_str()) - start_wires;
+						wire_list[id].id = id;
                     	wire_list[id].size = 0;
 						parse_arg(&wire_list[id],A2,0);
                         strcpy(wire_list[id].inp[1], "0");
@@ -124,6 +128,7 @@ int main(int argc, char *argv[]){
                         strcpy(wire_list[id].yv->inp, wire_list[id].inp[0]);
                     } else if (A1[0]=='p') {
                         id = std::atoi(A1.substr(2,A1.size()-1).c_str());
+                       	output_list[id].id = id;
 						output_list[id].size = 0;
 						parse_arg(&output_list[id],A2,0);
                         strcpy(output_list[id].inp[1], "0");
@@ -140,12 +145,16 @@ int main(int argc, char *argv[]){
 		
 	}
 
+	for (int i = 0; i < num_outputs; i++) {
+		int size = build_yv(&output_list[i]);
+	}
+
 // Write out YIG Graph
 	outfile << ".i " << num_inputs << "\n";
 	outfile << ".o " << num_outputs << "\n";
 	outfile << ".w " << num_wires << "\n"; // TODO fix num_wires once we implement optimizations
 	for (int i = 0; i < num_wires; i++) {
-		if (wire_list[i].print) {
+		if (wire_list[i].print && (wire_list[i].fanout > 0)) {
 			print_yig(&wire_list[i], outfile, i, 'w');
 		}
 	}
@@ -159,16 +168,27 @@ int main(int argc, char *argv[]){
 	delete[] wire_list;	
 }
 
-void build_yv(yig *y) {
-	if(y->pol[0] && y->and_func && (y->y[0] != NULL)) {
-		build_yv(y->y[0]);
+int build_yv(yig *y) {
+	if(y->pol[0] && y->and_func && (y->y[0] != NULL) && (y->y[0]->checked_by != y->id+1)) {
+		int size_y0 = build_yv(y->y[0]);
+		y->y[0]->fanout--;
+        yig_value *head = y->y[0]->yv;
+        while (head->yv != NULL) head = head->yv;
+		head->yv = y->yv->yv;
 		y->yv=y->y[0]->yv;
+		y->size += size_y0;
+		y->y[0]->checked_by = y->id+1;
 	} 
-	if(y->pol[1] && y->and_func && (y->y[1] != NULL)) {
-        build_yv(y->y[1]);
-        y->yv=y->y[1]->yv;
+	if(y->pol[1] && y->and_func && (y->y[1] != NULL) && (y->y[1]->checked_by != y->id+1)) {
+        int size_y1 = build_yv(y->y[1]);
+		y->y[1]->fanout--;
+		yig_value *head = y->yv;
+		while (head->yv->yv != NULL) head = head->yv;
+        head->yv = y->y[1]->yv;
+		y->size += size_y1;
+        y->y[1]->checked_by = y->id+1;
     }
-	
+	return y->size;
 }
 
 void parse_arg(yig *y, string a, int input_pos){
@@ -192,6 +212,7 @@ void parse_arg(yig *y, string a, int input_pos){
 		else {
 			string input_string = "~" + s.substr(1,s.size()-1);
 			strcpy(y->inp[input_pos], input_string.c_str());
+			y->y[input_pos] = 0;
 		}
     }
 	else { // constant

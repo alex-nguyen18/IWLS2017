@@ -7,11 +7,11 @@
 yig2verilog : yig2verilog.o
 	gcc -g -o $@ $^
 
-%.tex : %.w
-	cweave $<
+#%.tex : %.w
+#	cweave $<
 
-%.pdf : %.tex
-	pdftex $<
+#%.pdf : %.tex
+#	pdftex $<
 
 doc : yig2verilog.pdf
 

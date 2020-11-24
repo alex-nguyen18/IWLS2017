@@ -20,6 +20,7 @@ void parse_arg(yig* y,string a,int id); //update yig pass-by-ptr
 void build_yv(yig* y);//some sort of DFS optimization per output?
 void print_yig(yig *y, ofstream &outfile, int id, char type);
 yig_value* copy_yv(yig_value* yv);
+void clean_yig_vals(yig *y);
 
 int main(int argc, char *argv[]){
 	if (argc!=3){ //
@@ -70,7 +71,7 @@ int main(int argc, char *argv[]){
 					for (int i = buflen-1; i>0; i--){
 						if(str[i] == 'n'){//find last entry and take index
 							num_wires = std::atoi(str.substr(i+1,buflen-i-1).c_str())-start_wires; 
-							wire_list = new yig [num_wires]; //generate space for the YIGs to build in
+							wire_list = new yig [num_wires+1]; //generate space for the YIGs to build in
 							break;
 						}
 					}	
@@ -94,10 +95,10 @@ int main(int argc, char *argv[]){
 							//strcpy(wire_list[id].inp[2], (OP == "|") ? "1":"0"); //if or, 3rd input is 1; if and, 3rd input is 0 
 							wire_list[id].and_func = (OP == "&");
 
-							wire_list[id].yv= new yig_value;
-							strcpy(wire_list[id].yv->inp, A2.c_str());
-							wire_list[id].yv->yv = new yig_value;
-							strcpy(wire_list[id].yv->yv->inp, A3.c_str());
+							//wire_list[id].yv= new yig_value;
+							//strcpy(wire_list[id].yv->inp, A2.c_str());
+							//wire_list[id].yv->yv = new yig_value;
+							//strcpy(wire_list[id].yv->yv->inp, A3.c_str());
 						} else if (A1[0]=='p') {
 							id = std::atoi(A1.substr(2,A1.size()-1).c_str()); 
 							output_list[id].size = 1;
@@ -106,10 +107,10 @@ int main(int argc, char *argv[]){
 							//strcpy(output_list[id].inp[2], (OP == "|") ? "1":"0"); //if or, 3rd input is 1; if and, 3rd input is 0
 							output_list[id].and_func = (OP == "&");
 
-							output_list[id].yv= new yig_value;
-							strcpy(output_list[id].yv->inp, A2.c_str());
-							output_list[id].yv->yv = new yig_value;
-							strcpy(output_list[id].yv->yv->inp, A3.c_str());
+							//output_list[id].yv= new yig_value;
+							//strcpy(output_list[id].yv->inp, A2.c_str());
+							//output_list[id].yv->yv = new yig_value;
+							//strcpy(output_list[id].yv->yv->inp, A3.c_str());
 						}
 					} 
 					else if (success == 2){ // "assign A1 = A2;" Note A2 can be '1'bx'; //probably will never call this, but just in case
@@ -122,8 +123,8 @@ int main(int argc, char *argv[]){
 							//strcpy(wire_list[id].inp[1], "0");
 							//strcpy(wire_list[id].inp[2], "0");
 
-							wire_list[id].yv= new yig_value;
-							strcpy(wire_list[id].yv->inp, A2.c_str());
+							//wire_list[id].yv= new yig_value;
+							//strcpy(wire_list[id].yv->inp, A2.c_str());
 						} else if (A1[0]=='p') {
 							id = std::atoi(A1.substr(2,A1.size()-1).c_str());
 							output_list[id].size = 0;
@@ -131,8 +132,8 @@ int main(int argc, char *argv[]){
 							//strcpy(output_list[id].inp[1], "0");
 							//strcpy(output_list[id].inp[2], "0");
 
-							output_list[id].yv= new yig_value;
-							strcpy(output_list[id].yv->inp, A2.c_str());
+							//output_list[id].yv= new yig_value;
+							//strcpy(output_list[id].yv->inp, A2.c_str());
 						}
 					}
 			}
@@ -145,33 +146,87 @@ int main(int argc, char *argv[]){
 	for (int i = 0; i < num_outputs; i++){
 		build_yv(&output_list[i]);
 	}
-	
+	//int optim = 0;
+	//int neg = 0;
 	int new_wires = 0;
 	for (int i = 0; i < num_wires; i++){
+		if (wire_list[i].fanout <= 0){
+			wire_list[i].print = false;
+	//		optim++;
+		}
+		if (wire_list[i].neg){ 
+			wire_list[i].print = true;
+	//		neg++;
+		}	
 		if (wire_list[i].print){
 			new_wires++;
 		}
 	}
+	cout << optim << " " <<  neg << endl;
 	// Write out YIG Graph
 	outfile << ".i " << num_inputs << "\n";
 	outfile << ".o " << num_outputs << "\n";
 	outfile << ".w " << new_wires << "\n"; // TODO fix num_wires once we implement optimizations
+
 	for (int i = 0; i < num_wires; i++) {
-		if (wire_list[i].neg){ 
-			wire_list[i].print = true;
-		}
+		//cout << wire_list[i].fanout << endl;
+		
 		if (wire_list[i].print) {
 			print_yig(&wire_list[i], outfile, i, 'w');
 		}
 	}
+
 	for (int i = 0; i < num_outputs; i++) {
+		/*if (output_list[i].type[0] == 'w' && output_list[i].size == 0){
+			output_list[i].size = output_list[i].y[0]->size;
+			output_list[i].yv = output_list[i].y[0]->yv;
+		}*/
 		print_yig(&output_list[i], outfile, i, 'o');
+	}
+	
+	for (int i = 0; i < num_wires; i++){
+		if (wire_list[i].opt) clean_yig_vals(&wire_list[i]);
+	}
+	for (int i = 0; i < num_outputs; i++){
+		if (output_list[i].opt) clean_yig_vals(&wire_list[i]);
 	}
 	outfile << ".e ";
 
 	outfile.close();
+	delete[] wire_list;
 	delete[] output_list;
-	delete[] wire_list;	
+	return 0;	
+}
+
+//Input: yig (y) (an output) to traverse and count
+//Output: None
+//This function will count the number of dependencies on a wire
+void count_deps(yig *y){
+	if(y->type[0] == 'n'){
+		build_yv(y->y[0]);
+	}
+	if(y->type[1] == 'n'){
+		build_yv(y->y[1]);	
+	}
+	
+}
+
+//Input: yig (y) to be cleaned up
+//Output: None
+//This function will (hopefully) clean up the yig_values for the given yigs
+void clean_yig_vals(yig *y) {
+	if (y->size > 0){
+		yig_value *temp = y->yv;
+		yig_value *temp2 = temp->yv;
+		while (temp2 != NULL){
+			delete temp;
+			temp = temp2;
+			temp2 = temp->yv;
+		}
+	}
+	else{
+		delete y->yv;
+	}
 }
 
 //Input: yig (y) being optimized
@@ -179,14 +234,14 @@ int main(int argc, char *argv[]){
 //Function should update the size of the yig and associate yig_values
 //This will essentially update the pointers for the yig_values
 void build_yv(yig *y) {	
-	if(y->type[0] == 'n'){
-		build_yv(y->y[0]);
-	}
-	if(y->type[1] == 'n'){
-		build_yv(y->y[1]);	
-	}
 	if (!(y->opt)){
-		if(y->type[0] == 'n' && y->pol[0] && y->y[0]->and_func){ //combine at top vertex; THIS HAS BAD CORNER CASES
+		if(y->type[0] == 'n'){
+			build_yv(y->y[0]);
+		}
+		if(y->type[1] == 'n'){
+			build_yv(y->y[1]);	
+		}
+		if(y->type[0] == 'n' || y->type[0] == 'o' && y->pol[0] && y->y[0]->and_func){ //combine at top vertex; THIS HAS BAD CORNER CASES
 			yig_value* temp = y->yv; //save yv to delete
 			yig_value* temp2 = y->y[0]->yv; //find end y[0]->yv list to connect in
 			yig_value* temp3 = copy_yv(y->y[0]->yv);
@@ -217,27 +272,17 @@ void build_yv(yig *y) {
 				temp3 = temp3->yv;
 			}
 			temp3 = temp3->yv;
-			//temp3->yv = NULL;
 			y->size = y->size + y->y[1]->size;
 			delete temp;
 			y->y[1]->fanout--;
-		}
-		//y->size = y->y[0]->size + y->y[1]->size;
-		//y->size = a+b;
-	}
-	if (y->fanout == 0) {
-		y->print = false;
-		//cout << "Opt?\n";
-	}
-	else if (y->fanout <0){
-		cout << "Neg Fanout: " << y->fanout << endl;
+		}	
 	}
 	y->opt = true;
 }
 
 //Input: yv to be copied
 //Output: ptr to copy of yv
-//
+//This function will make a copy of the yv as a new (dyn alloc) yv
 yig_value* copy_yv(yig_value *yv){
 	yig_value *ret = new yig_value;
 	strcpy(ret->inp,yv->inp);
@@ -252,7 +297,7 @@ void parse_arg(yig *y, string a, int input_pos){
 	y->print = true;
 	if (s[0] == '~') { // update the yig polarity
 		y->pol[input_pos] = false;
-		s = a.substr(1,a.size()-1);
+		s = s.substr(1,a.size()-1);
 	} 
 	else {
 		y->pol[input_pos] = true;
@@ -260,34 +305,65 @@ void parse_arg(yig *y, string a, int input_pos){
 	//strcpy(y->inp[input_pos], s.c_str()); 
 	if (s[0] == 'n'){ //wire
 		int wire_id = std::atoi(s.substr(1,s.size()-1).c_str()) - start_wires;
-/*		
-		string wire_string = "w" + to_string(wire_id);
+		
+		string wire_string = "w" + s.substr(1,s.size()-1); //this does the wiring nmuber fixes
 		if(!y->pol[input_pos]) {
 			wire_string = "~" + wire_string;
 			wire_list[wire_id].neg = true;
 		}
-*/
 		y->inp[input_pos] = wire_id;
 		y->type[input_pos] = 'n';
-		//strcpy(y->inp[input_pos], wire_string.c_str());
+		if (input_pos == 0){
+			y->yv = new yig_value;
+			strcpy(y->yv->inp, wire_string.c_str());
+		}
+		else {
+			y->yv->yv = new yig_value;
+			strcpy(y->yv->yv->inp, wire_string.c_str());	
+		}
 		y->y[input_pos] = &wire_list[wire_id];
 		wire_list[wire_id].fanout++;
 	}
 	else if (s[0] == 'p') { //input
 		int inp_id = std::atoi(s.substr(2,s.size()-2).c_str());
-		y->inp[input_pos] = inp_id;	
+		y->inp[input_pos] = inp_id;
+		string input_string = (y->pol[input_pos] ? s.substr(1,s.size()-1) : "~" + s.substr(1,s.size()-1));
 		if (s[1] == 'i') {
 			y->type[input_pos] = 'i';
+			if (input_pos == 0){
+				y->yv = new yig_value;
+				strcpy(y->yv->inp, input_string.c_str());
+			}
+			else {
+				y->yv->yv = new yig_value;
+				strcpy(y->yv->yv->inp, input_string.c_str());	
+			}
 		}
 		else{
-			y->type[input_pos] = 'o';
+			y->type[input_pos] = 'w';
+			if (input_pos == 0){
+				y->yv = new yig_value;
+				strcpy(y->yv->inp, input_string.c_str());
+			}
+			else {
+				y->yv->yv = new yig_value;
+				strcpy(y->yv->yv->inp, input_string.c_str());	
+			}
+			y->y[input_pos] = &wire_list[inp_id];
 		}
 	}
 	else { // constant
 		int c_id = std::atoi(s.substr(1,1).c_str());
 		y->inp[input_pos] = c_id;
 		y->type[input_pos] = 'c';
-		//strcpy(y->inp[input_pos], s.substr(3,s.size()-1).c_str());
+		if (input_pos == 0){
+			y->yv = new yig_value;
+			strcpy(y->yv->inp, s.substr(3,s.size()-1).c_str());
+		}
+		else {
+			y->yv->yv = new yig_value;
+			strcpy(y->yv->yv->inp, s.substr(3,s.size()-1).c_str());	
+		};
 	}
 }
 

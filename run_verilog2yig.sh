@@ -1,6 +1,6 @@
 #!/bin/bash
 
-FILES="./benchmarks/*"
+FILES="./benchmarks/y*"
 BASELINE=(8156 5329 2947 2831 1990 7001 751 1281 1185 771)
 i=0
 

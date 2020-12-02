@@ -70,8 +70,8 @@ int main(int argc, char *argv[]){
 				case 3: //wire
 					for (int i = buflen-1; i>0; i--){
 						if(str[i] == 'n'){//find last entry and take index
-							num_wires = std::atoi(str.substr(i+1,buflen-i-1).c_str())-start_wires; 
-							wire_list = new yig [num_wires+1]; //generate space for the YIGs to build in
+							num_wires = std::atoi(str.substr(i+1,buflen-i-1).c_str())-start_wires+1; 
+							wire_list = new yig [num_wires]; //generate space for the YIGs to build in
 							break;
 						}
 					}	
@@ -92,25 +92,13 @@ int main(int argc, char *argv[]){
 							wire_list[id].size = 1;
 							parse_arg(&wire_list[id],A2,0);
 							parse_arg(&wire_list[id],A3,1);
-							//strcpy(wire_list[id].inp[2], (OP == "|") ? "1":"0"); //if or, 3rd input is 1; if and, 3rd input is 0 
 							wire_list[id].and_func = (OP == "&");
-
-							//wire_list[id].yv= new yig_value;
-							//strcpy(wire_list[id].yv->inp, A2.c_str());
-							//wire_list[id].yv->yv = new yig_value;
-							//strcpy(wire_list[id].yv->yv->inp, A3.c_str());
 						} else if (A1[0]=='p') {
 							id = std::atoi(A1.substr(2,A1.size()-1).c_str()); 
 							output_list[id].size = 1;
 							parse_arg(&output_list[id],A2,0);
 							parse_arg(&output_list[id],A3,1);
-							//strcpy(output_list[id].inp[2], (OP == "|") ? "1":"0"); //if or, 3rd input is 1; if and, 3rd input is 0
 							output_list[id].and_func = (OP == "&");
-
-							//output_list[id].yv= new yig_value;
-							//strcpy(output_list[id].yv->inp, A2.c_str());
-							//output_list[id].yv->yv = new yig_value;
-							//strcpy(output_list[id].yv->yv->inp, A3.c_str());
 						}
 					} 
 					else if (success == 2){ // "assign A1 = A2;" Note A2 can be '1'bx'; //probably will never call this, but just in case
@@ -120,20 +108,10 @@ int main(int argc, char *argv[]){
 							id = std::atoi(A1.substr(1,A1.size()-1).c_str()) - start_wires;
 							wire_list[id].size = 0;
 							parse_arg(&wire_list[id],A2,0);
-							//strcpy(wire_list[id].inp[1], "0");
-							//strcpy(wire_list[id].inp[2], "0");
-
-							//wire_list[id].yv= new yig_value;
-							//strcpy(wire_list[id].yv->inp, A2.c_str());
 						} else if (A1[0]=='p') {
 							id = std::atoi(A1.substr(2,A1.size()-1).c_str());
 							output_list[id].size = 0;
 							parse_arg(&output_list[id],A2,0);
-							//strcpy(output_list[id].inp[1], "0");
-							//strcpy(output_list[id].inp[2], "0");
-
-							//output_list[id].yv= new yig_value;
-							//strcpy(output_list[id].yv->inp, A2.c_str());
 						}
 					}
 			}
@@ -146,53 +124,39 @@ int main(int argc, char *argv[]){
 	for (int i = 0; i < num_outputs; i++){
 		build_yv(&output_list[i]);
 	}
-	//int optim = 0;
-	//int neg = 0;
 	int new_wires = 0;
 	for (int i = 0; i < num_wires; i++){
-		if (wire_list[i].fanout <= 0){
-			wire_list[i].print = false;
-	//		optim++;
-		}
-		if (wire_list[i].neg){ 
-			wire_list[i].print = true;
-	//		neg++;
-		}	
-		if (wire_list[i].print){
+		if (wire_list[i].print && (wire_list[i].fanout > 0)) {
 			new_wires++;
-		}
+		} 
 	}
-	//cout << optim << " " <<  neg << endl;
+
 	// Write out YIG Graph
 	outfile << ".i " << num_inputs << "\n";
 	outfile << ".o " << num_outputs << "\n";
-	outfile << ".w " << new_wires << "\n"; // TODO fix num_wires once we implement optimizations
+	outfile << ".w " << new_wires << "\n"; 
 
 	for (int i = 0; i < num_wires; i++) {
-		//cout << wire_list[i].fanout << endl;
-		
-		if (wire_list[i].print) {
+		if (wire_list[i].print && (wire_list[i].fanout > 0)) {
 			print_yig(&wire_list[i], outfile, i+1, 'w');
 		}
 	}
 
 	for (int i = 0; i < num_outputs; i++) {
-		/*if (output_list[i].type[0] == 'w' && output_list[i].size == 0){
-			output_list[i].size = output_list[i].y[0]->size;
-			output_list[i].yv = output_list[i].y[0]->yv;
-		}*/
 		print_yig(&output_list[i], outfile, i+1, 'o');
 	}
 	
+	outfile << ".e ";
+	outfile.close();
+
+	// Clean up
 	for (int i = 0; i < num_wires; i++){
 		if (wire_list[i].opt) clean_yig_vals(&wire_list[i]);
 	}
 	for (int i = 0; i < num_outputs; i++){
-		if (output_list[i].opt) clean_yig_vals(&wire_list[i]);
+		if (output_list[i].opt) clean_yig_vals(&output_list[i]);
 	}
-	outfile << ".e ";
 
-	outfile.close();
 	delete[] wire_list;
 	delete[] output_list;
 	return 0;	
@@ -309,79 +273,46 @@ string itoa(int i){
 void parse_arg(yig *y, string a, int input_pos){
 	string s = a;
 	y->print = true;
+    int id;
+    string id_string;
+
 	if (s[0] == '~') { // update the yig polarity
 		y->pol[input_pos] = false;
 		s = s.substr(1,a.size()-1);
-	} 
-	else {
-		y->pol[input_pos] = true;
-	}
-	//strcpy(y->inp[input_pos], s.c_str()); 
+	} else y->pol[input_pos] = true;
+
 	if (s[0] == 'n'){ //wire
-		int wire_id = std::atoi(s.substr(1,s.size()-1).c_str()) - start_wires;
-		
-		string wire_string = "w" + itoa(wire_id+1);//s.substr(1,s.size()-1); //this does the wiring nmuber fixes
-		if(!y->pol[input_pos]) {
-			wire_string = "~" + wire_string;
-			wire_list[wire_id].neg = true;
-		}
-		y->inp[input_pos] = wire_id;
+		id = std::atoi(s.substr(1,s.size()-1).c_str()) - start_wires;
+		id_string = "w" + itoa(id+1);//s.substr(1,s.size()-1); //this does the wiring nmuber fixes
+
 		y->type[input_pos] = 'n';
-		if (input_pos == 0){
-			y->yv = new yig_value;
-			strcpy(y->yv->inp, wire_string.c_str());
-		}
-		else {
-			y->yv->yv = new yig_value;
-			strcpy(y->yv->yv->inp, wire_string.c_str());	
-		}
-		y->y[input_pos] = &wire_list[wire_id];
-		wire_list[wire_id].fanout++;
+
+		y->y[input_pos] = &wire_list[id];
+		wire_list[id].fanout++;
 	}
-	else if (s[0] == 'p') { //input
-		int inp_id = std::atoi(s.substr(2,s.size()-2).c_str());
-		y->inp[input_pos] = inp_id;
-		string input_string = s[1]+itoa(inp_id+1);
-		if (!y->pol[input_pos]) input_string.insert(0, 1, '~');
-        //string input_string = (y->pol[input_pos] ? s[1]+itoa(inp_id+1) : "~"+s[1]+itoa(inp_id+1));
-		//string input_string = (y->pol[input_pos] ? s.substr(1,s.size()-1) : "~" + s.substr(1,s.size()-1));
-		if (s[1] == 'i') {
-			y->type[input_pos] = 'i';
-			if (input_pos == 0){
-				y->yv = new yig_value;
-				strcpy(y->yv->inp, input_string.c_str());
-			}
-			else {
-				y->yv->yv = new yig_value;
-				strcpy(y->yv->yv->inp, input_string.c_str());	
-			}
-		}
-		else{
-			y->type[input_pos] = 'w';
-			if (input_pos == 0){
-				y->yv = new yig_value;
-				strcpy(y->yv->inp, input_string.c_str());
-			}
-			else {
-				y->yv->yv = new yig_value;
-				strcpy(y->yv->yv->inp, input_string.c_str());	
-			}
-			y->y[input_pos] = &wire_list[inp_id];
-		}
+    else if (s[0] == 'p') { //input or output
+		id = std::atoi(s.substr(2,s.size()-2).c_str());
+		id_string = s[1] + itoa(id+1);
+
+        y->type[input_pos] = s[1];
 	}
-	else { // constant
-		int c_id = std::atoi(s.substr(1,1).c_str());
-		y->inp[input_pos] = c_id;
-		y->type[input_pos] = 'c';
-		if (input_pos == 0){
-			y->yv = new yig_value;
-			strcpy(y->yv->inp, s.substr(3,s.size()-1).c_str());
-		}
-		else {
-			y->yv->yv = new yig_value;
-			strcpy(y->yv->yv->inp, s.substr(3,s.size()-1).c_str());	
-		};
+    else { // constant
+        id = std::atoi(s.substr(1,1).c_str());
+		id_string = s.substr(3,s.size()-1).c_str();
+
+        y->type[input_pos] = 'c';
 	}
+
+	y->inp[input_pos] = id;
+	if (!y->pol[input_pos]) id_string.insert(0, 1, '~');
+    if (input_pos == 0){
+        y->yv = new yig_value;
+        strcpy(y->yv->inp, id_string.c_str());
+    }
+    else {
+        y->yv->yv = new yig_value;
+        strcpy(y->yv->yv->inp, id_string.c_str());
+    }
 }
 
 //Input: yig (y) to be printed

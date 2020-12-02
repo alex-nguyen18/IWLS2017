@@ -341,7 +341,9 @@ void parse_arg(yig *y, string a, int input_pos){
 	else if (s[0] == 'p') { //input
 		int inp_id = std::atoi(s.substr(2,s.size()-2).c_str());
 		y->inp[input_pos] = inp_id;
-		string input_string = (y->pol[input_pos] ? s[1]+itoa(inp_id+1) : "~"+s[1]+itoa(inp_id+1));
+		string input_string = s[1]+itoa(inp_id+1);
+		if (!y->pol[input_pos]) input_string.insert(0, 1, '~');
+        //string input_string = (y->pol[input_pos] ? s[1]+itoa(inp_id+1) : "~"+s[1]+itoa(inp_id+1));
 		//string input_string = (y->pol[input_pos] ? s.substr(1,s.size()-1) : "~" + s.substr(1,s.size()-1));
 		if (s[1] == 'i') {
 			y->type[input_pos] = 'i';

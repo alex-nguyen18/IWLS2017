@@ -162,7 +162,7 @@ int main(int argc, char *argv[]){
 			new_wires++;
 		}
 	}
-	cout << optim << " " <<  neg << endl;
+	//cout << optim << " " <<  neg << endl;
 	// Write out YIG Graph
 	outfile << ".i " << num_inputs << "\n";
 	outfile << ".o " << num_outputs << "\n";
@@ -172,7 +172,7 @@ int main(int argc, char *argv[]){
 		//cout << wire_list[i].fanout << endl;
 		
 		if (wire_list[i].print) {
-			print_yig(&wire_list[i], outfile, i, 'w');
+			print_yig(&wire_list[i], outfile, i+1, 'w');
 		}
 	}
 
@@ -181,7 +181,7 @@ int main(int argc, char *argv[]){
 			output_list[i].size = output_list[i].y[0]->size;
 			output_list[i].yv = output_list[i].y[0]->yv;
 		}*/
-		print_yig(&output_list[i], outfile, i, 'o');
+		print_yig(&output_list[i], outfile, i+1, 'o');
 	}
 	
 	for (int i = 0; i < num_wires; i++){
@@ -241,7 +241,7 @@ void build_yv(yig *y) {
 		if(y->type[1] == 'n'){
 			build_yv(y->y[1]);	
 		}
-		if(y->type[0] == 'n' || y->type[0] == 'o' && y->pol[0] && y->y[0]->and_func){ //combine at top vertex; THIS HAS BAD CORNER CASES
+		if(y->type[0] == 'n' && y->pol[0] && y->y[0]->and_func){ //combine at top vertex; THIS HAS BAD CORNER CASES
 			yig_value* temp = y->yv; //save yv to delete
 			yig_value* temp2 = y->y[0]->yv; //find end y[0]->yv list to connect in
 			yig_value* temp3 = copy_yv(y->y[0]->yv);
@@ -289,6 +289,20 @@ yig_value* copy_yv(yig_value *yv){
 	return ret;
 }
 
+//Input: int i to be converted to string
+//Output: string version of i
+//Convert integer to string (base 10)
+string itoa(int i){
+	string ret = "";
+	int r;
+	while (i>0){
+		r = i % 10;
+		ret = (char)(48+r)+ret;
+		i = (i-r)/10;
+	}
+	return ret;	
+}
+
 //Input: yig struct (y) being modified, input string (a), and position in yig
 //Output: None
 //Function will modify yig fields (pass by ptr)
@@ -306,7 +320,7 @@ void parse_arg(yig *y, string a, int input_pos){
 	if (s[0] == 'n'){ //wire
 		int wire_id = std::atoi(s.substr(1,s.size()-1).c_str()) - start_wires;
 		
-		string wire_string = "w" + s.substr(1,s.size()-1); //this does the wiring nmuber fixes
+		string wire_string = "w" + itoa(wire_id+1);//s.substr(1,s.size()-1); //this does the wiring nmuber fixes
 		if(!y->pol[input_pos]) {
 			wire_string = "~" + wire_string;
 			wire_list[wire_id].neg = true;
@@ -327,7 +341,8 @@ void parse_arg(yig *y, string a, int input_pos){
 	else if (s[0] == 'p') { //input
 		int inp_id = std::atoi(s.substr(2,s.size()-2).c_str());
 		y->inp[input_pos] = inp_id;
-		string input_string = (y->pol[input_pos] ? s.substr(1,s.size()-1) : "~" + s.substr(1,s.size()-1));
+		string input_string = (y->pol[input_pos] ? s[1]+itoa(inp_id+1) : "~"+s[1]+itoa(inp_id+1));
+		//string input_string = (y->pol[input_pos] ? s.substr(1,s.size()-1) : "~" + s.substr(1,s.size()-1));
 		if (s[1] == 'i') {
 			y->type[input_pos] = 'i';
 			if (input_pos == 0){

@@ -4,6 +4,8 @@ using std::string;
 struct yig_value {
 	char inp[10];
 	yig_value *yv = NULL;
+	bool and_func = true;
+	bool and_func_up = false;
 };
 
 struct yig {
@@ -16,6 +18,5 @@ struct yig {
 	bool print = false; //do not print if true
 	yig* y[2]; // pointers to constituent YIGs so we have access to their inputs
 	int fanout = 0;
-	bool neg = false;
 	bool and_func = true; // true if an AND
 }; 

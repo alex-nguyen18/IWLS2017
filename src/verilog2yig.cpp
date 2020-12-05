@@ -90,15 +90,15 @@ int main(int argc, char *argv[]){
 						if (A1[0]=='n') {
 							id = std::atoi(A1.substr(1,A1.size()-1).c_str()) - start_wires;
 							wire_list[id].size = 1;
+							wire_list[id].and_func = (OP == "&");
 							parse_arg(&wire_list[id],A2,0);
 							parse_arg(&wire_list[id],A3,1);
-							wire_list[id].and_func = (OP == "&");
 						} else if (A1[0]=='p') {
 							id = std::atoi(A1.substr(2,A1.size()-1).c_str()); 
 							output_list[id].size = 1;
+							output_list[id].and_func = (OP == "&");
 							parse_arg(&output_list[id],A2,0);
 							parse_arg(&output_list[id],A3,1);
-							output_list[id].and_func = (OP == "&");
 						}
 					} 
 					else if (success == 2){ // "assign A1 = A2;" Note A2 can be '1'bx'; //probably will never call this, but just in case
@@ -205,7 +205,7 @@ void build_yv(yig *y) {
 		if(y->type[1] == 'n'){
 			build_yv(y->y[1]);	
 		}
-		if(y->type[0] == 'n' && y->pol[0] && y->y[0]->and_func){ //combine at top vertex; THIS HAS BAD CORNER CASES
+		if(y->type[0] == 'n' && y->pol[0]) { // && y->y[0]->and_func){ //combine at top vertex; THIS HAS BAD CORNER CASES
 			yig_value* temp = y->yv; //save yv to delete
 			yig_value* temp2 = y->y[0]->yv; //find end y[0]->yv list to connect in
 			yig_value* temp3 = copy_yv(y->y[0]->yv);
@@ -216,15 +216,18 @@ void build_yv(yig *y) {
 				temp3 = temp3->yv;
 			}
 			temp3->yv = temp->yv;
-			y->size = y->size +  y->y[0]->size;
+			temp3->and_func_up = y->and_func;
+			y->size = (!y->y[0]->and_func && y->and_func) ? y->size +  y->y[0]->size +1 : y->size +  y->y[0]->size;
 			delete temp;
 			y->y[0]->fanout--;
+		//} else if (y->type[0] == 'o' && y->pol[0]) {
 		}
-		if(y->type[1] == 'n' && y->pol[1] && y->y[1]->and_func){ //combine at left vertex
+		if(y->type[1] == 'n' && y->pol[1]) { // && y->y[1]->and_func){ //combine at left vertex
 			yig_value* temp; //save yv to delete
 			yig_value* temp3 = y->yv; //find end of y->yv list to attach to y[0]
 			yig_value* temp2 = y->y[1]->yv;
-			for (int i = 0; i<y->size-1;i++){
+			//for (int i = 0; i<y->size-1;i++){
+			while (temp3->yv->yv != NULL) {
 				temp3 = temp3->yv;
 			}
 			temp = temp3->yv;
@@ -235,8 +238,9 @@ void build_yv(yig *y) {
 				temp3->yv = copy_yv(temp2);
 				temp3 = temp3->yv;
 			}
+            temp3->and_func_up = y->and_func;
 			temp3 = temp3->yv;
-			y->size = y->size + y->y[1]->size;
+            y->size = (y->y[1]->and_func) ? y->size +  y->y[1]->size : y->size +  y->y[1]->size + 1;
 			delete temp;
 			y->y[1]->fanout--;
 		}	
@@ -250,6 +254,7 @@ void build_yv(yig *y) {
 yig_value* copy_yv(yig_value *yv){
 	yig_value *ret = new yig_value;
 	strcpy(ret->inp,yv->inp);
+	ret->and_func = yv->and_func;
 	return ret;
 }
 
@@ -295,6 +300,10 @@ void parse_arg(yig *y, string a, int input_pos){
 		id_string = s[1] + itoa(id+1);
 
         y->type[input_pos] = s[1];
+
+        if (s[1] == 'o') {
+            y->y[input_pos] = &output_list[id];
+        }
 	}
     else { // constant
         id = std::atoi(s.substr(1,1).c_str());
@@ -308,10 +317,12 @@ void parse_arg(yig *y, string a, int input_pos){
     if (input_pos == 0){
         y->yv = new yig_value;
         strcpy(y->yv->inp, id_string.c_str());
+		y->yv->and_func = y->and_func;
     }
     else {
         y->yv->yv = new yig_value;
         strcpy(y->yv->yv->inp, id_string.c_str());
+        y->yv->yv->and_func = y->and_func;
     }
 }
 
@@ -320,18 +331,71 @@ void parse_arg(yig *y, string a, int input_pos){
 //Function will print out the yig structure
 void print_yig (yig *y, ofstream &outfile, int id, char type){
 	yig_value *yval = y->yv;
+	int cse = 0;
+	int num_or = 0;
+	int num_or_counter = 0;
 	outfile << type << id << " = Y" << y->size << "(";
 	for(int i=0; i<=y->size; i++) {
-		outfile << yval->inp;
-		for(int j=0; j<i; j++) {
-			if (y->and_func) outfile << ", 0";
-			else outfile << ", 1";
+/* Next State */
+		if (yval->and_func && num_or == 0) cse = 0;
+		else if (num_or == 0) cse = 1;
+        else if (num_or > num_or_counter) cse = 2;
+        else if (num_or == num_or_counter) cse = 3;
+		else if (num_or < num_or_counter) cse = 4;
+
+		switch(cse) {
+/* AND Function */
+			case 0: 
+			{	outfile << yval->inp;
+            	for(int j=0; j<i; j++) outfile << ", 0";
+            	if (yval->yv != NULL) yval = yval->yv;
+				break;
+			}
+/* OR Function - first OR (count how many) */
+			case 1: 
+            {   yig_value *temp = yval->yv;
+                num_or++;
+                while (!temp->and_func && temp->yv != NULL && !temp->and_func_up) {
+                    temp = temp->yv;
+                    num_or++;
+                }
+				outfile << "1";
+                for (int k=num_or_counter; k<i; k++) outfile << ", 0";
+                num_or_counter++;
+				break;
+			}
+/* OR Function - layers of 1's */
+			case 2: 
+            {   outfile << "1";
+                for (int j=0; j<num_or_counter; j++) outfile << ", 1";
+                for (int k=num_or_counter; k<i; k++) outfile << ", 0";
+                num_or_counter++;
+				break;
+			}
+/* OR Function - line of values */
+			case 3: 
+            {   outfile << yval->inp;
+                yval = yval->yv;
+                for (int j=0; j<num_or_counter; j++) {
+                    outfile << ", " << yval->inp;
+                    if (yval->yv != NULL) yval = yval->yv;
+                }
+                for (int k=num_or_counter; k<i; k++) outfile << ", 0";
+                num_or_counter++;
+				break;
+			}
+/* OR Function - extra line of 1's */
+			case 4: 
+            {	outfile << "1";
+            	for (int j=0; j<num_or_counter; j++) outfile << ", 1";
+            	for (int k=num_or_counter+1; k<=i; k++) outfile << ", 0";
+            	num_or_counter = 0;
+            	num_or = 0;
+				break;
+			}
 		}
 		if (i==y->size) outfile << ");\n";
 		else outfile << ", ";
-		if (yval->yv != NULL){
-			yval = yval->yv;
-		}
 	}
 }
 

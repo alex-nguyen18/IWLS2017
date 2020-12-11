@@ -7,14 +7,20 @@ module test_top;
     initial begin
         clk = 1'b0;
         inputs = 8'b00000000;
+	end
+
+	initial begin
         resultsFile = $fopen("resultsFile.txt");
+		#257
+		$fclose(resultsFile);
+		$finish;
+	end
 
-		always #5 clk = ~clk;
+	always #1 clk = ~clk;
 
-        always @ posedge (clk) begin
-            $fwrite(resultsFile, outputs);
-            inputs++;
-        end
+    always @ posedge (clk) begin
+        $fwrite(resultsFile, "input = %d; output = %d\n", inputs, outputs);
+        inputs++;
     end
 
 test_yig TEST_YIG (

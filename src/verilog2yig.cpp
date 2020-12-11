@@ -123,6 +123,17 @@ int main(int argc, char *argv[]){
 	// Optimize YIGs
 	for (int i = 0; i < num_outputs; i++){
 		build_yv(&output_list[i]);
+
+		outfile << "o" << i << ":\n";
+		yig_value *temp = output_list[i].yv;
+		while (temp->yv != NULL) {
+			outfile << "    size:" << output_list[i].size << " " << temp->inp << " and_func = " << temp->and_func << "; and_func_up = " << temp->and_func_up << "\n";
+			if (!temp->and_func && temp->and_func_up) {
+				output_list[i].size = output_list[i].size + 2;
+			} else {output_list[i].size++;}
+			temp = temp->yv;
+		}
+		outfile << "    size:" << output_list[i].size << "\n";
 	}
 	int new_wires = 0;
 	for (int i = 0; i < num_wires; i++){
@@ -210,17 +221,17 @@ void build_yv(yig *y) {
 			yig_value* temp2 = y->y[0]->yv; //find end y[0]->yv list to connect in
 			yig_value* temp3 = copy_yv(y->y[0]->yv);
 			y->yv = temp3; //copy new list
-			for (int i = 0; i<y->y[0]->size;i++){
+			//for (int i = 0; i<y->y[0]->size;i++){
+			while (temp2->yv != NULL) {
 				temp2 = temp2->yv;
 				temp3->yv = copy_yv(temp2);
 				temp3 = temp3->yv;
 			}
 			temp3->yv = temp->yv;
 			temp3->and_func_up = y->and_func;
-			y->size = (!y->y[0]->and_func && y->and_func) ? y->size +  y->y[0]->size +1 : y->size +  y->y[0]->size;
+			//y->size = (!y->y[0]->and_func && y->and_func) ? y->size +  y->y[0]->size +1 : y->size +  y->y[0]->size;
 			delete temp;
 			y->y[0]->fanout--;
-		//} else if (y->type[0] == 'o' && y->pol[0]) {
 		}
 		if(y->type[1] == 'n' && y->pol[1]) { // && y->y[1]->and_func){ //combine at left vertex
 			yig_value* temp; //save yv to delete
@@ -233,14 +244,15 @@ void build_yv(yig *y) {
 			temp = temp3->yv;
 			temp3->yv = copy_yv(temp2);
 			temp3 = temp3->yv;
-			for (int i = 0; i<y->y[1]->size; i++){
+			//for (int i = 0; i<y->y[1]->size; i++){
+			while (temp2->yv != NULL) {
 				temp2 = temp2->yv;
 				temp3->yv = copy_yv(temp2);
 				temp3 = temp3->yv;
 			}
             temp3->and_func_up = y->and_func;
 			temp3 = temp3->yv;
-            y->size = (y->y[1]->and_func) ? y->size +  y->y[1]->size : y->size +  y->y[1]->size + 1;
+            //y->size = (!y->y[1]->and_func && y->and_func) ? y->size +  y->y[1]->size +1 : y->size +  y->y[1]->size;
 			delete temp;
 			y->y[1]->fanout--;
 		}	
@@ -302,6 +314,7 @@ void parse_arg(yig *y, string a, int input_pos){
         y->type[input_pos] = s[1];
 
         if (s[1] == 'o') {
+			y->type[input_pos] = 'n';
             y->y[input_pos] = &output_list[id];
         }
 	}

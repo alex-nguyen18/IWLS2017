@@ -165,6 +165,7 @@ int main(int argc, char *argv[]){
 				output_list[i].size = output_list[i].size + 2;
 			} else {output_list[i].size++;}
 			temp = temp->yv;*/
+
 		//}
 		//outfile << "    size:" << output_list[i].size << "\n";
 	}
@@ -265,6 +266,7 @@ void build_yv(yig *y) {
 			temp3->and_func_up = false;
 			y->size = y->size + y->y[0]->size;
 			//y->size = (!y->y[0]->and_func && y->and_func) ? y->size +  y->y[0]->size +1 : y->size +  y->y[0]->size;
+
 			delete temp;
 			y->y[0]->fanout--;
 	//		if (y->y[0]->fanout == 0) clean_yig_vals(y->y[0]);
@@ -490,13 +492,13 @@ void print_yig (yig *y, ofstream &outfile, int id, char type){
 				}
 				/* OR Function - extra line of 1's */
 			case 4: 
-				{	outfile << "1";
-					for (int j=0; j<num_or_counter; j++) outfile << ", 1";
-					for (int k=num_or_counter+1; k<=i; k++) outfile << ", 0";
-					num_or_counter = 0;
-					num_or = 0;
-					break;
-				}
+		            {	outfile << "1";
+ 	   	        	for (int j=0; j<num_or_counter-1; j++) outfile << ", 1";
+       		 	    	for (int k=num_or_counter+1; k<=i+1; k++) outfile << ", 0";
+       	   		  	num_or_counter = 0;
+            			num_or = 0;
+				break;
+			}
 		}
 		if (i==y->size) outfile << ");\n";
 		else outfile << ", ";

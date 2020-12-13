@@ -124,16 +124,16 @@ int main(int argc, char *argv[]){
 	for (int i = 0; i < num_outputs; i++){
 		build_yv(&output_list[i]);
 
-		outfile << "o" << i << ":\n";
-		yig_value *temp = output_list[i].yv;
-		while (temp->yv != NULL) {
-			outfile << "    size:" << output_list[i].size << " " << temp->inp << " and_func = " << temp->and_func << "; and_func_up = " << temp->and_func_up << "\n";
-			if (!temp->and_func && temp->and_func_up) {
-				output_list[i].size = output_list[i].size + 2;
-			} else {output_list[i].size++;}
-			temp = temp->yv;
-		}
-		outfile << "    size:" << output_list[i].size << "\n";
+		//outfile << "o" << i << ":\n";
+		//yig_value *temp = output_list[i].yv;
+		//while (temp->yv != NULL) {
+		//	outfile << "    size:" << output_list[i].size << " " << temp->inp << " and_func = " << temp->and_func << "; and_func_up = " << temp->and_func_up << "\n";
+		//	if (!temp->and_func && temp->and_func_up) {
+		//		output_list[i].size = output_list[i].size + 2;
+		//	} else {output_list[i].size++;}
+		//	temp = temp->yv;
+		//}
+		//outfile << "    size:" << output_list[i].size << "\n";
 	}
 	int new_wires = 0;
 	for (int i = 0; i < num_wires; i++){
@@ -229,7 +229,7 @@ void build_yv(yig *y) {
 			}
 			temp3->yv = temp->yv;
 			temp3->and_func_up = y->and_func;
-			//y->size = (!y->y[0]->and_func && y->and_func) ? y->size +  y->y[0]->size +1 : y->size +  y->y[0]->size;
+			y->size = (!y->y[0]->and_func && y->and_func) ? y->size +  y->y[0]->size +1 : y->size +  y->y[0]->size;
 			delete temp;
 			y->y[0]->fanout--;
 		}
@@ -252,7 +252,7 @@ void build_yv(yig *y) {
 			}
             temp3->and_func_up = y->and_func;
 			temp3 = temp3->yv;
-            //y->size = (!y->y[1]->and_func && y->and_func) ? y->size +  y->y[1]->size +1 : y->size +  y->y[1]->size;
+            y->size = (!y->y[1]->and_func && y->and_func) ? y->size +  y->y[1]->size +1 : y->size +  y->y[1]->size;
 			delete temp;
 			y->y[1]->fanout--;
 		}	
@@ -400,8 +400,8 @@ void print_yig (yig *y, ofstream &outfile, int id, char type){
 /* OR Function - extra line of 1's */
 			case 4: 
             {	outfile << "1";
-            	for (int j=0; j<num_or_counter; j++) outfile << ", 1";
-            	for (int k=num_or_counter+1; k<=i; k++) outfile << ", 0";
+            	for (int j=0; j<num_or_counter-1; j++) outfile << ", 1";
+            	for (int k=num_or_counter+1; k<=i+1; k++) outfile << ", 0";
             	num_or_counter = 0;
             	num_or = 0;
 				break;

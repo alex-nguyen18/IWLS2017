@@ -19,7 +19,7 @@ yig* output_list;
 void parse_arg(yig* y,string a,int id); //update yig pass-by-ptr
 void build_yv(yig* y);//some sort of DFS optimization per output?
 void print_yig(yig *y, ofstream &outfile, int id, char type);
-yig_value* copy_yv(yig_value* yv);
+yig_value* copy_yv(yig_value* yv, bool neg);
 void clean_yig_vals(yig *y);
 
 int main(int argc, char *argv[]){
@@ -120,20 +120,53 @@ int main(int argc, char *argv[]){
 
 	}
 
+	/*
+	int OR_COUNT = 0;
+	int FANOUT_PLUS = 0;
+	int FANOUT_3 = 0;
+	int FANOUT_2 = 0;
+	int FANOUT_1 = 0;
+	int FANOUT_0 = 0;
+	int inv_inv = 0;
+	for (int i = 0; i < num_wires; i++){
+		if(wire_list[i].neg){
+			OR_COUNT++;
+			switch(wire_list[i].fanout){
+			case(3): FANOUT_3++; break;
+			case(2): FANOUT_2++; break;
+			case(1): FANOUT_1++; break;
+			case(0): FANOUT_0++; break;
+			default: FANOUT_PLUS++; break;
+			}
+			if((wire_list[i].type[0]=='n' && !wire_list[i].pol[0]) || (wire_list[i].type[1]=='n'&& !wire_list[i].pol[1])){
+				inv_inv++;
+			}
+		}	
+	}
+	cout << num_wires << endl;
+	cout << OR_COUNT << endl << endl;
+	cout << FANOUT_3 << endl;
+	cout << FANOUT_2 << endl;
+	cout << FANOUT_1 << endl;
+	cout << FANOUT_0 << endl;
+	cout << FANOUT_PLUS << endl << endl;
+	cout << inv_inv << endl;
+
+	*/
 	// Optimize YIGs
 	for (int i = 0; i < num_outputs; i++){
 		build_yv(&output_list[i]);
 
-		outfile << "o" << i << ":\n";
+/*		outfile << "o" << i << ":\n";
 		yig_value *temp = output_list[i].yv;
 		while (temp->yv != NULL) {
 			outfile << "    size:" << output_list[i].size << " " << temp->inp << " and_func = " << temp->and_func << "; and_func_up = " << temp->and_func_up << "\n";
 			if (!temp->and_func && temp->and_func_up) {
 				output_list[i].size = output_list[i].size + 2;
 			} else {output_list[i].size++;}
-			temp = temp->yv;
-		}
-		outfile << "    size:" << output_list[i].size << "\n";
+			temp = temp->yv;*/
+		//}
+		//outfile << "    size:" << output_list[i].size << "\n";
 	}
 	int new_wires = 0;
 	for (int i = 0; i < num_wires; i++){
@@ -156,7 +189,7 @@ int main(int argc, char *argv[]){
 	for (int i = 0; i < num_outputs; i++) {
 		print_yig(&output_list[i], outfile, i+1, 'o');
 	}
-	
+
 	outfile << ".e ";
 	outfile.close();
 
@@ -183,14 +216,15 @@ void count_deps(yig *y){
 	if(y->type[1] == 'n'){
 		build_yv(y->y[1]);	
 	}
-	
+
 }
 
 //Input: yig (y) to be cleaned up
 //Output: None
 //This function will (hopefully) clean up the yig_values for the given yigs
 void clean_yig_vals(yig *y) {
-	if (y->size > 0){
+	if (y->yv == NULL) return;
+	else if (y->size > 0){
 		yig_value *temp = y->yv;
 		yig_value *temp2 = temp->yv;
 		while (temp2 != NULL){
@@ -216,24 +250,46 @@ void build_yv(yig *y) {
 		if(y->type[1] == 'n'){
 			build_yv(y->y[1]);	
 		}
-		if(y->type[0] == 'n' && y->pol[0]) { // && y->y[0]->and_func){ //combine at top vertex; THIS HAS BAD CORNER CASES
+		if(y->type[0] == 'n' && y->pol[0] && y->and_func){ //combine at top vertex; THIS HAS BAD CORNER CASES
 			yig_value* temp = y->yv; //save yv to delete
 			yig_value* temp2 = y->y[0]->yv; //find end y[0]->yv list to connect in
-			yig_value* temp3 = copy_yv(y->y[0]->yv);
+			yig_value* temp3 = copy_yv(y->y[0]->yv, y->pol[0]);
 			y->yv = temp3; //copy new list
 			//for (int i = 0; i<y->y[0]->size;i++){
 			while (temp2->yv != NULL) {
 				temp2 = temp2->yv;
-				temp3->yv = copy_yv(temp2);
+				temp3->yv = copy_yv(temp2, y->pol[0]);
 				temp3 = temp3->yv;
 			}
 			temp3->yv = temp->yv;
-			temp3->and_func_up = y->and_func;
+			temp3->and_func_up = false;
+			y->size = y->size + y->y[0]->size;
 			//y->size = (!y->y[0]->and_func && y->and_func) ? y->size +  y->y[0]->size +1 : y->size +  y->y[0]->size;
 			delete temp;
 			y->y[0]->fanout--;
+	//		if (y->y[0]->fanout == 0) clean_yig_vals(y->y[0]);
 		}
-		if(y->type[1] == 'n' && y->pol[1]) { // && y->y[1]->and_func){ //combine at left vertex
+		else if( y->type[0] == 'n' && !y->pol[0] && !y->y[0]->has_or && y->and_func){ //combine at top vertex; THIS HAS BAD CORNER CASES
+			yig_value* temp = y->yv; //save yv to delete
+			yig_value* temp2 = y->y[0]->yv; //find end y[0]->yv list to connect in
+			yig_value* temp3 = copy_yv(y->y[0]->yv, y->pol[0]);
+			y->yv = temp3; //copy new list
+			//for (int i = 0; i<y->y[0]->size;i++){
+			while (temp2->yv != NULL) {
+				temp2 = temp2->yv;
+				temp3->yv = copy_yv(temp2, y->pol[0]);
+				temp3 = temp3->yv;
+			}
+			temp3->yv = temp->yv;
+			temp3->and_func_up = true;
+			y->size = y->size + y->y[0]->size + 1;
+			//y->size = (!y->y[0]->and_func && y->and_func) ? y->size +  y->y[0]->size +1 : y->size +  y->y[0]->size;
+			delete temp;
+			y->y[0]->fanout--;
+	//		if (y->y[0]->fanout == 0) clean_yig_vals(y->y[0]);
+			y->has_or = true;
+		}
+		if(y->type[1] == 'n' && y->pol[1] && y->and_func){ //combine at left vertex
 			yig_value* temp; //save yv to delete
 			yig_value* temp3 = y->yv; //find end of y->yv list to attach to y[0]
 			yig_value* temp2 = y->y[1]->yv;
@@ -242,31 +298,63 @@ void build_yv(yig *y) {
 				temp3 = temp3->yv;
 			}
 			temp = temp3->yv;
-			temp3->yv = copy_yv(temp2);
+			temp3->yv = copy_yv(temp2, y->pol[1]);
 			temp3 = temp3->yv;
 			//for (int i = 0; i<y->y[1]->size; i++){
 			while (temp2->yv != NULL) {
 				temp2 = temp2->yv;
-				temp3->yv = copy_yv(temp2);
+				temp3->yv = copy_yv(temp2, y->pol[1]);
 				temp3 = temp3->yv;
 			}
-            temp3->and_func_up = y->and_func;
+			temp3->and_func_up = false;
 			temp3 = temp3->yv;
-            //y->size = (!y->y[1]->and_func && y->and_func) ? y->size +  y->y[1]->size +1 : y->size +  y->y[1]->size;
+			y->size = y->size + y->y[1]->size;
+			//y->size = (!y->y[1]->and_func && y->and_func) ? y->size +  y->y[1]->size +1 : y->size +  y->y[1]->size;
 			delete temp;
 			y->y[1]->fanout--;
+	//		if (y->y[1]->fanout == 0) clean_yig_vals(y->y[1]);
+
 		}	
+		else if(y->type[1] == 'n' && !y->pol[1] && !y->y[1]->has_or && y->and_func){ //combine at left vertex
+			yig_value* temp; //save yv to delete
+			yig_value* temp3 = y->yv; //find end of y->yv list to attach to y[0]
+			yig_value* temp2 = y->y[1]->yv;
+			//for (int i = 0; i<y->size-1;i++){
+			while (temp3->yv->yv != NULL) {
+				temp3 = temp3->yv;
+			}
+			temp = temp3->yv;
+			temp3->yv = copy_yv(temp2, y->pol[1]);
+			temp3 = temp3->yv;
+			//for (int i = 0; i<y->y[1]->size; i++){
+			while (temp2->yv != NULL) {
+				temp2 = temp2->yv;
+				temp3->yv = copy_yv(temp2, y->pol[1]);
+				temp3 = temp3->yv;
+			}
+			temp3->and_func_up = true;
+			temp3 = temp3->yv;
+			y->size = y->size + y->y[1]->size + 1;
+			//y->size = (!y->y[1]->and_func && y->and_func) ? y->size +  y->y[1]->size +1 : y->size +  y->y[1]->size;
+			delete temp;
+			y->has_or = true;
+			y->y[1]->fanout--;
+	//		if (y->y[1]->fanout == 0) clean_yig_vals(y->y[1]);
+		}
 	}
 	y->opt = true;
 }
 
-//Input: yv to be copied
+//Input: yv to be copied, neg if value is flipped
 //Output: ptr to copy of yv
 //This function will make a copy of the yv as a new (dyn alloc) yv
-yig_value* copy_yv(yig_value *yv){
+// neg = y->pol[0] or y->pol[1]
+yig_value* copy_yv(yig_value *yv, bool neg){
 	yig_value *ret = new yig_value;
 	strcpy(ret->inp,yv->inp);
-	ret->and_func = yv->and_func;
+	//ret->and_func_up = (neg) ? yv->and_func_up : !yv->and_func_up;
+	ret->and_func = (neg) ? yv->and_func : !yv->and_func;
+	ret->neg = (neg) ? yv->neg : !yv->neg;
 	return ret;
 }
 
@@ -290,53 +378,57 @@ string itoa(int i){
 void parse_arg(yig *y, string a, int input_pos){
 	string s = a;
 	y->print = true;
-    int id;
-    string id_string;
-
+	int id;
+	string id_string;
 	if (s[0] == '~') { // update the yig polarity
 		y->pol[input_pos] = false;
 		s = s.substr(1,a.size()-1);
-	} else y->pol[input_pos] = true;
-
+	} 
+	else y->pol[input_pos] = true;
 	if (s[0] == 'n'){ //wire
 		id = std::atoi(s.substr(1,s.size()-1).c_str()) - start_wires;
 		id_string = "w" + itoa(id+1);//s.substr(1,s.size()-1); //this does the wiring nmuber fixes
-
 		y->type[input_pos] = 'n';
-
 		y->y[input_pos] = &wire_list[id];
 		wire_list[id].fanout++;
+		if (y->pol[input_pos] == false){
+			wire_list[id].neg = true;
+		}
 	}
-    else if (s[0] == 'p') { //input or output
+	else if (s[0] == 'p') { //input or output
 		id = std::atoi(s.substr(2,s.size()-2).c_str());
 		id_string = s[1] + itoa(id+1);
-
-        y->type[input_pos] = s[1];
-
-        if (s[1] == 'o') {
+		y->type[input_pos] = s[1];
+		if (s[1] == 'o') {
 			y->type[input_pos] = 'n';
-            y->y[input_pos] = &output_list[id];
-        }
+			y->y[input_pos] = &output_list[id];
+		}
 	}
-    else { // constant
-        id = std::atoi(s.substr(1,1).c_str());
+	else { // constant
+		id = std::atoi(s.substr(1,1).c_str());
 		id_string = s.substr(3,s.size()-1).c_str();
 
-        y->type[input_pos] = 'c';
+		y->type[input_pos] = 'c';
 	}
 
 	y->inp[input_pos] = id;
-	if (!y->pol[input_pos]) id_string.insert(0, 1, '~');
-    if (input_pos == 0){
-        y->yv = new yig_value;
-        strcpy(y->yv->inp, id_string.c_str());
+//	if (!y->pol[input_pos]) //id_string.insert(0, 1, '~');
+	if (input_pos == 0){
+		y->yv = new yig_value;
+		strcpy(y->yv->inp, id_string.c_str());
 		y->yv->and_func = y->and_func;
-    }
-    else {
-        y->yv->yv = new yig_value;
-        strcpy(y->yv->yv->inp, id_string.c_str());
-        y->yv->yv->and_func = y->and_func;
-    }
+		if (y->pol[input_pos] == false){
+			y->yv->neg = true;
+		}
+	}
+	else {
+		y->yv->yv = new yig_value;
+		strcpy(y->yv->yv->inp, id_string.c_str());
+		y->yv->yv->and_func = y->and_func;
+		if (y->pol[input_pos] == false){
+			y->yv->yv->neg = true;
+		}
+	}
 }
 
 //Input: yig (y) to be printed
@@ -349,63 +441,62 @@ void print_yig (yig *y, ofstream &outfile, int id, char type){
 	int num_or_counter = 0;
 	outfile << type << id << " = Y" << y->size << "(";
 	for(int i=0; i<=y->size; i++) {
-/* Next State */
-		if (yval->and_func && num_or == 0) cse = 0;
+		/* Next State */
+		if (yval->and_func && num_or == 0) cse = 0; 
 		else if (num_or == 0) cse = 1;
-        else if (num_or > num_or_counter) cse = 2;
-        else if (num_or == num_or_counter) cse = 3;
+		else if (num_or > num_or_counter) cse = 2;
+		else if (num_or == num_or_counter) cse = 3;
 		else if (num_or < num_or_counter) cse = 4;
 
 		switch(cse) {
-/* AND Function */
+			/* AND Function */
 			case 0: 
-			{	outfile << yval->inp;
-            	for(int j=0; j<i; j++) outfile << ", 0";
-            	if (yval->yv != NULL) yval = yval->yv;
-				break;
-			}
-/* OR Function - first OR (count how many) */
+				{	outfile << yval->inp;
+					for(int j=0; j<i; j++) outfile << ", 0";
+					if (yval->yv != NULL) yval = yval->yv;
+					break;
+				}
+				/* OR Function - first OR (count how many) */
 			case 1: 
-            {   yig_value *temp = yval->yv;
-                num_or++;
-                while (!temp->and_func && temp->yv != NULL && !temp->and_func_up) {
-                    temp = temp->yv;
-                    num_or++;
-                }
-				outfile << "1";
-                for (int k=num_or_counter; k<i; k++) outfile << ", 0";
-                num_or_counter++;
-				break;
-			}
-/* OR Function - layers of 1's */
+				{   yig_value *temp = yval;
+					while (!temp->and_func && temp->yv != NULL && !temp->and_func_up) {
+						temp = temp->yv;
+						num_or++;
+					}
+					outfile << "1";
+					for (int k=num_or_counter; k<i; k++) outfile << ", 0";
+					num_or_counter++;
+					break;
+				}
+				/* OR Function - layers of 1's */
 			case 2: 
-            {   outfile << "1";
-                for (int j=0; j<num_or_counter; j++) outfile << ", 1";
-                for (int k=num_or_counter; k<i; k++) outfile << ", 0";
-                num_or_counter++;
-				break;
-			}
-/* OR Function - line of values */
+				{   outfile << "1";
+					for (int j=0; j<num_or_counter; j++) outfile << ", 1";
+					for (int k=num_or_counter; k<i; k++) outfile << ", 0";
+					num_or_counter++;
+					break;
+				}
+				/* OR Function - line of values */
 			case 3: 
-            {   outfile << yval->inp;
-                yval = yval->yv;
-                for (int j=0; j<num_or_counter; j++) {
-                    outfile << ", " << yval->inp;
-                    if (yval->yv != NULL) yval = yval->yv;
-                }
-                for (int k=num_or_counter; k<i; k++) outfile << ", 0";
-                num_or_counter++;
-				break;
-			}
-/* OR Function - extra line of 1's */
+				{   outfile << yval->inp;
+					yval = yval->yv;
+					for (int j=0; j<num_or_counter; j++) {
+						outfile << ", " << yval->inp;
+						if (yval->yv != NULL) yval = yval->yv;
+					}
+					for (int k=num_or_counter; k<i; k++) outfile << ", 0";
+					num_or_counter++;
+					break;
+				}
+				/* OR Function - extra line of 1's */
 			case 4: 
-            {	outfile << "1";
-            	for (int j=0; j<num_or_counter; j++) outfile << ", 1";
-            	for (int k=num_or_counter+1; k<=i; k++) outfile << ", 0";
-            	num_or_counter = 0;
-            	num_or = 0;
-				break;
-			}
+				{	outfile << "1";
+					for (int j=0; j<num_or_counter; j++) outfile << ", 1";
+					for (int k=num_or_counter+1; k<=i; k++) outfile << ", 0";
+					num_or_counter = 0;
+					num_or = 0;
+					break;
+				}
 		}
 		if (i==y->size) outfile << ");\n";
 		else outfile << ", ";

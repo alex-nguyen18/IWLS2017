@@ -1,5 +1,5 @@
-module test (
-	pi0, pi1, pi2, pi3
+module test_2 (
+	pi0, pi1, pi2, pi3,
 	po0);
   	input pi0, pi1, pi2, pi3;
   	output po0;

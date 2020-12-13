@@ -1,7 +1,7 @@
-module test (
+module test_4 (
 	pi0, pi1, pi2, pi3, pi4,
 	po0);
-  	input pi0, pi1, pi2, pi3;
+  	input pi0, pi1, pi2, pi3, pi4;
   	output po0;
   	wire n1, n2, n3;
 	assign n1 = pi0 | pi1;

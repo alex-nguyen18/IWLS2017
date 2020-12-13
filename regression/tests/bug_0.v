@@ -1,5 +1,5 @@
-module test (
-	pi0, pi1, pi2, pi3, pi4, pi5
+module bug_0 (
+	pi0, pi1, pi2, pi3, pi4, pi5,
 	po0, po1, po2, po3, po4);
   	input pi0, pi1, pi2, pi3, pi4, pi5;
   	output po0, po1, po2, po3, po4;

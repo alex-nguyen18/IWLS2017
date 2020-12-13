@@ -453,14 +453,15 @@ void print_yig (yig *y, ofstream &outfile, int id, char type){
 		switch(cse) {
 			/* AND Function */
 			case 0: 
-				{	outfile << yval->inp;
+				{	if (yval->neg) outfile << '~' << yval->inp; 
+					else outfile << yval->inp;
 					for(int j=0; j<i; j++) outfile << ", 0";
 					if (yval->yv != NULL) yval = yval->yv;
 					break;
 				}
 				/* OR Function - first OR (count how many) */
 			case 1: 
-				{   yig_value *temp = yval;
+				{   	yig_value *temp = yval;
 					while (!temp->and_func && temp->yv != NULL && !temp->and_func_up) {
 						temp = temp->yv;
 						num_or++;
@@ -480,7 +481,8 @@ void print_yig (yig *y, ofstream &outfile, int id, char type){
 				}
 				/* OR Function - line of values */
 			case 3: 
-				{   outfile << yval->inp;
+				{   	if (yval->neg) outfile << '~' << yval->inp; 
+					else outfile << yval->inp;
 					yval = yval->yv;
 					for (int j=0; j<num_or_counter; j++) {
 						outfile << ", " << yval->inp;

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-FILES="./regression/tests/*"
+FILES="./regression/tests/test_*"
 pass=0;
 fail=0;
 total=0;

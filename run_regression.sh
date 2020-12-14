@@ -16,7 +16,7 @@ do
 	file_sanspath=${f##*/}
 	file_sansext=${file_sanspath%.*}
 	#echo "Command invocation: ./src/verilog2yig $f ./regression/out/$file_sansext.yig"
-	./src/verilog2yig $f ./regression/out/$file_sansext.yig
+	./src/verilog2yig $f ./regression/output_yigs/$file_sansext.yig
 
 	echo "<<<<<<<<<<<<<<<<<<<<<<<< $file_sansext >>>>>>>>>>>>>>>>>>>>>>>>" >> $outfile
 	echo "" >> $outfile
@@ -28,11 +28,11 @@ do
 	echo "" >> $outfile
 
 	echo "OUTPUT YIG: $file_sansext.yig" >> $outfile
-	cat ./regression/out/$file_sansext.yig >> $outfile
+	cat ./regression/output_yigs/$file_sansext.yig >> $outfile
 	echo "" >> $outfile
 			
 	if [ -f "./regression/check/$file_sansext.yig" ]; then
-		if cmp -s ./regression/out/$file_sansext.yig ./regression/check/$file_sansext.yig
+		if cmp -s ./regression/output_yigs/$file_sansext.yig ./regression/check/$file_sansext.yig
 		then
 			((pass++))
 			echo "PASS: $file_sansext.yig"

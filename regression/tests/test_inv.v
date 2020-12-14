@@ -1,5 +1,5 @@
 module test_inv (
-	pi0, pi1, pi2, pi3, pi4, pi5, pi6, pi7
+	pi0, pi1, pi2, pi3, pi4, pi5, pi6, pi7,
 	po0);
   	input pi0, pi1, pi2, pi3, pi4, pi5, pi6, pi7;
   	output po0;

@@ -10,7 +10,7 @@ module test_17 (
   assign n5 = ~pi4 & ~pi5;
   assign n6 = pi6 & pi7;
   assign n7 = pi8 & pi9;
-  assign n7 = n6 & n7;
-  assign n8 = n5 & n7;
-  assign po0 = ~n3 | ~n8;
+  assign n8 = n6 & n7;
+  assign n9 = n5 & n8;
+  assign po0 = ~n3 | ~n9;
 endmodule

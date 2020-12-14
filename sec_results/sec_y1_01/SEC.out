@@ -1,0 +1,21 @@
+******************************
+Current Dir: /afs/apd.pok.ibm.com/func/vlsi/eclipz/ct6/usr/ccslicke/p10d1/IWLS2017
+
+/afs/apd/func/vlsi/cte/tools/SixthSense/prod/bin-64/sec.pl -no_default_optconf -verilog_old y1_01.v -verilog_new y1_01.v -verilog_path_old ./benchmarks/ -verilog_path_new ../spool/IWLS2017/output_verilog/ -work_dir ./sec_results/sec_y1_01 -nmz_old -nmz_new -no_check_output_toggle -use_initialv_old -use_initialv_new
+******************************
+
+[sec]: Compiling OLD design y1_01...
+[sec]:  Running 6thsense, console is in: ./sec_results/sec_y1_01/compile_old.console
+[sec]:  Initial state will be based on: FigTree randomized dials, HDL init values, else X-init
+[sec]: Compiling NEW design y1_01...
+[sec]:  Running 6thsense, console is in: ./sec_results/sec_y1_01/compile_new.console
+[sec]:  Initial state will be based on: FigTree randomized dials, HDL init values, else X-init
+[sec]: Compiling COMPOSITE model...
+[sec]:  Running 6thsense, console is in: ./sec_results/sec_y1_01/compile_composite.console
+[sec]: Verifying COMPOSITE model...
+[sec]:  Running 6thsense, console is in: ./sec_results/sec_y1_01/verify_composite.console
+[sec]:  Using config file: Xpt_equivcheck.config
+[sec]:  EQUIVALENCE CHECK PASSED for all 1 FAIL targets
+[sec]:  For detailed results, view target report file: ./sec_results/sec_y1_01/sec_model/data/y1_01.sec_model.report
+[sec]: Total wall time = 60 sec; peak memory = 557 MB
+[sec]: Final RC = 0: SEC successful

@@ -99,7 +99,7 @@ int main(int argc, char *argv[]){
 							id = std::atoi(A1.substr(2,A1.size()-1).c_str()); 
 							output_list[id].size = 1;
 							output_list[id].and_func = (OP == "&");
-							if (!output_list[id].and_func) wire_list[id].size = 2;
+							if (!output_list[id].and_func) output_list[id].size = 2;
 							parse_arg(&output_list[id],A2,0);
 							parse_arg(&output_list[id],A3,1);
 						}
@@ -293,6 +293,8 @@ void build_yv(yig *y) {
 		if(y->type[1] == 'n'){
 			build_yv(y->y[1]);	
 		}
+		bool or0 = false;
+		yig_value* or_yv;
 		if(y->type[0] == 'n' && y->and_func && y->y[0]->and_func){ //AND_FUNC, Y[0]->AND_FUNC, BOTH_POL
 			if(!(!y->pol[0] && y->y[0]->has_or)){ //only case we cannot accept is inverted and has_or
 				yig_value* temp3 = copy_yv_chain(y,true);
@@ -319,9 +321,11 @@ void build_yv(yig *y) {
 		else if( y->type[0] == 'n' && !y->and_func && !y->y[0]->and_func && y->pol[0]){ //OR_FUNC, y[0]->OR_FUNC, POS_POL (all OR)
 			yig_value* temp3 = copy_yv_chain(y,true);
 			temp3->and_func_up = true; //copied values will have false set, AND vals don't care about AND_FUNC_UP
+			or_yv = temp3;
 			y->size = y->size + y->y[0]->size - 1; //if this is an or, both should already have the +1, so we need to remove 1
 			y->y[0]->fanout--;
 			y->has_or = true; //update has_or only if not inverted
+			or0 = true;
 		}
 		if(y->type[1] == 'n' && y->and_func && y->y[1]->and_func){ //AND_FUNC, Y[1]->AND_FUNC, BOTH_POL
 			if(!(!y->pol[1] && y->y[1]->has_or)){ //only case we cannot accept is inverted and has_or
@@ -347,6 +351,7 @@ void build_yv(yig *y) {
 			y->has_or = true; //update has_or only if not inverted
 		}
 		else if( y->type[1] == 'n' && !y->and_func && !y->y[1]->and_func && y->pol[1]){ //OR_FUNC, y[1]->OR_FUNC, POS_POL (all OR)
+			if (or0) or_yv->and_func_up = false;	
 			yig_value* temp3 = copy_yv_chain(y,false);
 			temp3->and_func_up = true; //copied values will have false set, AND vals don't care about AND_FUNC_UP
 			y->size = y->size + y->y[1]->size - 1; //if this is an or, it should already have the +1, so we need to remove one

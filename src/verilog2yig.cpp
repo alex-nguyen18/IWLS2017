@@ -485,7 +485,8 @@ void print_yig (yig *y, ofstream &outfile, int id, char type){
 					else outfile << yval->inp;
 					yval = yval->yv;
 					for (int j=0; j<num_or_counter; j++) {
-						outfile << ", " << yval->inp;
+						if (yval->neg) outfile << ", "  << '~' << yval->inp; 
+						else outfile << ", " <<  yval->inp;
 						if (yval->yv != NULL) yval = yval->yv;
 					}
 					for (int k=num_or_counter; k<i; k++) outfile << ", 0";

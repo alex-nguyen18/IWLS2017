@@ -311,7 +311,7 @@ void build_yv(yig *y) {
 			y->y[0]->fanout--;
 			y->has_or = y->pol[0]; //update has_or only if not inverted
 		}
-		else if( y->type[0] == 'n' && !y->and_func && y->y[0]->and_func && !y->pol[0]){ //OR_FUNC, y[0]->AND_FUNC, INV_POL (all OR)
+		else if( y->type[0] == 'n' && !y->and_func && y->y[0]->and_func && !y->y[0]->has_or && !y->pol[0]){ //OR_FUNC, y[0]->AND_FUNC, INV_POL (all OR)
 			yig_value* temp3 = copy_yv_chain(y,true);
 			temp3->and_func_up = true; //copied values will have false set, AND vals don't care about AND_FUNC_UP
 			y->size = y->size + y->y[0]->size; //if this is an or, it should already have the +1 
@@ -343,7 +343,7 @@ void build_yv(yig *y) {
 			y->y[1]->fanout--;
 			y->has_or = y->pol[1]; //update has_or only if not inverted
 		}
-		else if( y->type[1] == 'n' && !y->and_func && y->y[1]->and_func && !y->pol[1]){ //OR_FUNC, y[1]->AND_FUNC, INV_POL (all OR)
+		else if( y->type[1] == 'n' && !y->and_func && y->y[1]->and_func && !y->y[1]->has_or && !y->pol[1]){ //OR_FUNC, y[1]->AND_FUNC, INV_POL (all OR)
 			yig_value* temp3 = copy_yv_chain(y,false);
 			temp3->and_func_up = true; //copied values will have false set, AND vals don't care about AND_FUNC_UP
 			y->size = y->size + y->y[1]->size; //if this is an or, it should already have the +1 

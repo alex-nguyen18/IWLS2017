@@ -18,4 +18,4 @@ module y1_00 (
   assign po0 = n9 & n12;
 endmodule
 
-// ~pi7 -> pi3 -> ~pi4 -> pi5 -> ~pi6 -> ~pi11 -> pi10 -> ~pi8 -> pi9
+// po0 == n13 in y1_0

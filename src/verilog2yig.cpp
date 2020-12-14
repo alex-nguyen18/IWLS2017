@@ -21,6 +21,7 @@ void build_yv(yig* y);//some sort of DFS optimization per output?
 void print_yig(yig *y, ofstream &outfile, int id, char type);
 yig_value* copy_yv(yig_value* yv, bool neg);
 void clean_yig_vals(yig *y);
+yig_value* copy_yv_chain(yig *y, bool pos_zero);
 
 int main(int argc, char *argv[]){
 	if (argc!=3){ //
@@ -91,12 +92,14 @@ int main(int argc, char *argv[]){
 							id = std::atoi(A1.substr(1,A1.size()-1).c_str()) - start_wires;
 							wire_list[id].size = 1;
 							wire_list[id].and_func = (OP == "&");
+							if (!wire_list[id].and_func) wire_list[id].size = 2;
 							parse_arg(&wire_list[id],A2,0);
 							parse_arg(&wire_list[id],A3,1);
 						} else if (A1[0]=='p') {
 							id = std::atoi(A1.substr(2,A1.size()-1).c_str()); 
 							output_list[id].size = 1;
 							output_list[id].and_func = (OP == "&");
+							if (!output_list[id].and_func) wire_list[id].size = 2;
 							parse_arg(&output_list[id],A2,0);
 							parse_arg(&output_list[id],A3,1);
 						}
@@ -239,6 +242,45 @@ void clean_yig_vals(yig *y) {
 	}
 }
 
+//Inputs: yig to copy, bool (true = pos 0, false = pos 1)
+//Outputs: yig val ptr to last of relevant copy
+//
+//
+yig_value* copy_yv_chain(yig *y, bool pos_zero){
+	if (pos_zero){
+		yig_value* temp = y->yv; //save yv to delete
+		yig_value* temp2 = y->y[0]->yv; //find end y[0]->yv list to connect in
+		yig_value* temp3 = copy_yv(y->y[0]->yv, y->pol[0]);
+		y->yv = temp3; //copy new list
+		while (temp2->yv != NULL) {
+			temp2 = temp2->yv;
+			temp3->yv = copy_yv(temp2, y->pol[0]);
+			temp3 = temp3->yv;
+		}
+		temp3->yv = temp->yv;
+		delete temp;
+		return temp3;
+	}
+	else {
+		yig_value* temp; //save yv to delete
+		yig_value* temp3 = y->yv; //find end of y->yv list to attach to y[0]
+		yig_value* temp2 = y->y[1]->yv;
+		while (temp3->yv->yv != NULL) {
+			temp3 = temp3->yv;
+		}
+		temp = 	temp3->yv; //yv to delete at the end of the chain
+		temp3->yv = copy_yv(temp2, y->pol[1]);
+		temp3 = temp3->yv; //temp3 will be at the same spot on copy list as temp to on real list
+		while (temp2->yv != NULL) {
+			temp2 = temp2->yv;
+			temp3->yv = copy_yv(temp2, y->pol[1]);
+			temp3 = temp3->yv;
+		}
+		delete temp;
+		return temp3;
+	}
+}
+
 //Input: yig (y) being optimized
 //Output: None
 //Function should update the size of the yig and associate yig_values
@@ -251,97 +293,65 @@ void build_yv(yig *y) {
 		if(y->type[1] == 'n'){
 			build_yv(y->y[1]);	
 		}
-		if(y->type[0] == 'n' && y->pol[0] && y->and_func){ //combine at top vertex; THIS HAS BAD CORNER CASES
-			yig_value* temp = y->yv; //save yv to delete
-			yig_value* temp2 = y->y[0]->yv; //find end y[0]->yv list to connect in
-			yig_value* temp3 = copy_yv(y->y[0]->yv, y->pol[0]);
-			y->yv = temp3; //copy new list
-			//for (int i = 0; i<y->y[0]->size;i++){
-			while (temp2->yv != NULL) {
-				temp2 = temp2->yv;
-				temp3->yv = copy_yv(temp2, y->pol[0]);
-				temp3 = temp3->yv;
+		if(y->type[0] == 'n' && y->and_func && y->y[0]->and_func){ //AND_FUNC, Y[0]->AND_FUNC, BOTH_POL
+			if(!(!y->pol[0] && y->y[0]->has_or)){ //only case we cannot accept is inverted and has_or
+				yig_value* temp3 = copy_yv_chain(y,true);
+				temp3->and_func_up = true; //copied values will have false set, AND vals don't care about AND_FUNC_UP
+				y->size = (y->pol[0]) ? y->size + y->y[0]->size : y->size +  y->y[0]->size + 1; //if pos, add normal AND. if neg, treat like OR (+1)
+				y->y[0]->fanout--;
+				y->has_or = !y->pol[0]; //update has_or only if the invert was taken
 			}
-			temp3->yv = temp->yv;
-			temp3->and_func_up = false;
-			y->size = y->size + y->y[0]->size;
-			//y->size = (!y->y[0]->and_func && y->and_func) ? y->size +  y->y[0]->size +1 : y->size +  y->y[0]->size;
-
-			delete temp;
-			y->y[0]->fanout--;
-	//		if (y->y[0]->fanout == 0) clean_yig_vals(y->y[0]);
 		}
-		else if( y->type[0] == 'n' && !y->pol[0] && !y->y[0]->has_or && y->and_func){ //combine at top vertex; THIS HAS BAD CORNER CASES
-			yig_value* temp = y->yv; //save yv to delete
-			yig_value* temp2 = y->y[0]->yv; //find end y[0]->yv list to connect in
-			yig_value* temp3 = copy_yv(y->y[0]->yv, y->pol[0]);
-			y->yv = temp3; //copy new list
-			//for (int i = 0; i<y->y[0]->size;i++){
-			while (temp2->yv != NULL) {
-				temp2 = temp2->yv;
-				temp3->yv = copy_yv(temp2, y->pol[0]);
-				temp3 = temp3->yv;
-			}
-			temp3->yv = temp->yv;
-			temp3->and_func_up = true;
-			y->size = y->size + y->y[0]->size + 1;
-			//y->size = (!y->y[0]->and_func && y->and_func) ? y->size +  y->y[0]->size +1 : y->size +  y->y[0]->size;
-			delete temp;
+		else if( y->type[0] == 'n' && y->and_func && !y->y[0]->and_func){ //AND_FUNC, y[0]->OR_FUNC, BOTH_POL
+			yig_value* temp3 = copy_yv_chain(y,true);
+			temp3->and_func_up = true; //copied values will have false set, AND vals don't care about AND_FUNC_UP
+			y->size = (y->pol[0]) ? y->size + y->y[0]->size: y->size +  y->y[0]->size -1; //if pos, add as OR(should +1 already). if neg, treat like AND
 			y->y[0]->fanout--;
-	//		if (y->y[0]->fanout == 0) clean_yig_vals(y->y[0]);
-			y->has_or = true;
+			y->has_or = y->pol[0]; //update has_or only if not inverted
 		}
-		if(y->type[1] == 'n' && y->pol[1] && y->and_func){ //combine at left vertex
-			yig_value* temp; //save yv to delete
-			yig_value* temp3 = y->yv; //find end of y->yv list to attach to y[0]
-			yig_value* temp2 = y->y[1]->yv;
-			//for (int i = 0; i<y->size-1;i++){
-			while (temp3->yv->yv != NULL) {
-				temp3 = temp3->yv;
+		else if( y->type[0] == 'n' && !y->and_func && y->y[0]->and_func && !y->pol[0]){ //OR_FUNC, y[0]->AND_FUNC, INV_POL (all OR)
+			yig_value* temp3 = copy_yv_chain(y,true);
+			temp3->and_func_up = true; //copied values will have false set, AND vals don't care about AND_FUNC_UP
+			y->size = y->size + y->y[0]->size; //if this is an or, it should already have the +1 
+			y->y[0]->fanout--;
+			y->has_or = true; //update has_or only if not inverted
+		}
+		else if( y->type[0] == 'n' && !y->and_func && !y->y[0]->and_func && y->pol[0]){ //OR_FUNC, y[0]->OR_FUNC, POS_POL (all OR)
+			yig_value* temp3 = copy_yv_chain(y,true);
+			temp3->and_func_up = true; //copied values will have false set, AND vals don't care about AND_FUNC_UP
+			y->size = y->size + y->y[0]->size - 1; //if this is an or, both should already have the +1, so we need to remove 1
+			y->y[0]->fanout--;
+			y->has_or = true; //update has_or only if not inverted
+		}
+		if(y->type[1] == 'n' && y->and_func && y->y[1]->and_func){ //AND_FUNC, Y[1]->AND_FUNC, BOTH_POL
+			if(!(!y->pol[1] && y->y[1]->has_or)){ //only case we cannot accept is inverted and has_or
+				yig_value* temp3 = copy_yv_chain(y,false);
+				temp3->and_func_up = true; //copied values will have false set, AND vals don't care about AND_FUNC_UP
+				y->size = (y->pol[1]) ? y->size + y->y[1]->size : y->size +  y->y[1]->size + 1; //if pos, add normal AND. if neg, treat like OR (+1)
+				y->y[1]->fanout--;
+				y->has_or = !y->pol[1]; //update has_or only if the invert was taken
 			}
-			temp = temp3->yv;
-			temp3->yv = copy_yv(temp2, y->pol[1]);
-			temp3 = temp3->yv;
-			//for (int i = 0; i<y->y[1]->size; i++){
-			while (temp2->yv != NULL) {
-				temp2 = temp2->yv;
-				temp3->yv = copy_yv(temp2, y->pol[1]);
-				temp3 = temp3->yv;
-			}
-			temp3->and_func_up = false;
-			temp3 = temp3->yv;
-			y->size = y->size + y->y[1]->size;
-			//y->size = (!y->y[1]->and_func && y->and_func) ? y->size +  y->y[1]->size +1 : y->size +  y->y[1]->size;
-			delete temp;
+		}
+		else if( y->type[1] == 'n' && y->and_func && !y->y[1]->and_func){ //AND_FUNC, y[1]->OR_FUNC, BOTH_POL
+			yig_value* temp3 = copy_yv_chain(y,false);
+			temp3->and_func_up = true; //copied values will have false set, AND vals don't care about AND_FUNC_UP
+			y->size = (y->pol[1]) ? y->size + y->y[1]->size: y->size +  y->y[1]->size -1; //if pos, add as OR (+1). if neg, treat like AND
 			y->y[1]->fanout--;
-	//		if (y->y[1]->fanout == 0) clean_yig_vals(y->y[1]);
-
-		}	
-		else if(y->type[1] == 'n' && !y->pol[1] && !y->y[1]->has_or && y->and_func){ //combine at left vertex
-			yig_value* temp; //save yv to delete
-			yig_value* temp3 = y->yv; //find end of y->yv list to attach to y[0]
-			yig_value* temp2 = y->y[1]->yv;
-			//for (int i = 0; i<y->size-1;i++){
-			while (temp3->yv->yv != NULL) {
-				temp3 = temp3->yv;
-			}
-			temp = temp3->yv;
-			temp3->yv = copy_yv(temp2, y->pol[1]);
-			temp3 = temp3->yv;
-			//for (int i = 0; i<y->y[1]->size; i++){
-			while (temp2->yv != NULL) {
-				temp2 = temp2->yv;
-				temp3->yv = copy_yv(temp2, y->pol[1]);
-				temp3 = temp3->yv;
-			}
-			temp3->and_func_up = true;
-			temp3 = temp3->yv;
-			y->size = y->size + y->y[1]->size + 1;
-			//y->size = (!y->y[1]->and_func && y->and_func) ? y->size +  y->y[1]->size +1 : y->size +  y->y[1]->size;
-			delete temp;
-			y->has_or = true;
+			y->has_or = y->pol[1]; //update has_or only if not inverted
+		}
+		else if( y->type[1] == 'n' && !y->and_func && y->y[1]->and_func && !y->pol[1]){ //OR_FUNC, y[1]->AND_FUNC, INV_POL (all OR)
+			yig_value* temp3 = copy_yv_chain(y,false);
+			temp3->and_func_up = true; //copied values will have false set, AND vals don't care about AND_FUNC_UP
+			y->size = y->size + y->y[1]->size; //if this is an or, it should already have the +1 
 			y->y[1]->fanout--;
-	//		if (y->y[1]->fanout == 0) clean_yig_vals(y->y[1]);
+			y->has_or = true; //update has_or only if not inverted
+		}
+		else if( y->type[1] == 'n' && !y->and_func && !y->y[1]->and_func && y->pol[1]){ //OR_FUNC, y[1]->OR_FUNC, POS_POL (all OR)
+			yig_value* temp3 = copy_yv_chain(y,false);
+			temp3->and_func_up = true; //copied values will have false set, AND vals don't care about AND_FUNC_UP
+			y->size = y->size + y->y[1]->size - 1; //if this is an or, it should already have the +1, so we need to remove one
+			y->y[1]->fanout--;
+			y->has_or = true; //update has_or only if not inverted
 		}
 	}
 	y->opt = true;

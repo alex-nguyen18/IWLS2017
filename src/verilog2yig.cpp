@@ -7,6 +7,8 @@
 #include <cstdlib>
 #include "yig.h"
 
+#define MAX_GATE_SIZE 300 
+
 using namespace std;
 
 int num_inputs;
@@ -99,6 +101,7 @@ int main(int argc, char *argv[]){
 							id = std::atoi(A1.substr(2,A1.size()-1).c_str()); 
 							output_list[id].size = 1;
 							output_list[id].and_func = (OP == "&");
+							output_list[id].output = true;
 							if (!output_list[id].and_func) output_list[id].size = 2;
 							parse_arg(&output_list[id],A2,0);
 							parse_arg(&output_list[id],A3,1);
@@ -157,6 +160,9 @@ int main(int argc, char *argv[]){
 
 	*/
 	// Optimize YIGs
+//	for (int i = 0; i < num_wires; i++){
+//		build_yv(&wire_list[i]);
+//	}
 	for (int i = 0; i < num_outputs; i++){
 		build_yv(&output_list[i]);
 
@@ -199,7 +205,7 @@ int main(int argc, char *argv[]){
 
 	// Clean up
 	for (int i = 0; i < num_wires; i++){
-		if (wire_list[i].opt) clean_yig_vals(&wire_list[i]);
+		if (wire_list[i].opt && !wire_list[i].clean) clean_yig_vals(&wire_list[i]);
 	}
 	for (int i = 0; i < num_outputs; i++){
 		if (output_list[i].opt) clean_yig_vals(&output_list[i]);
@@ -295,8 +301,8 @@ void build_yv(yig *y) {
 		}
 		bool or0 = false;
 		yig_value* or_yv;
-		if(y->size <= 100){
-		if(y->type[0] == 'n' && y->and_func && y->y[0]->and_func){ //AND_FUNC, Y[0]->AND_FUNC, BOTH_POL
+		if(y->size <= MAX_GATE_SIZE){
+		if(y->type[0] == 'n' && y->y[0]->size <= MAX_GATE_SIZE && y->and_func && y->y[0]->and_func){ //AND_FUNC, Y[0]->AND_FUNC, BOTH_POL
 			if(!(!y->pol[0] && y->y[0]->has_or)){ //only case we cannot accept is inverted and has_or
 				yig_value* temp3 = copy_yv_chain(y,true);
 				temp3->and_func_up = true; //copied values will have false set, AND vals don't care about AND_FUNC_UP
@@ -328,7 +334,7 @@ void build_yv(yig *y) {
 			y->has_or = true; //update has_or only if not inverted
 			or0 = true;
 		}
-		if(y->type[1] == 'n' && y->and_func && y->y[1]->and_func){ //AND_FUNC, Y[1]->AND_FUNC, BOTH_POL
+		if(y->type[1] == 'n' && y->y[1]->size <= MAX_GATE_SIZE && y->and_func && y->y[1]->and_func){ //AND_FUNC, Y[1]->AND_FUNC, BOTH_POL
 			if(!(!y->pol[1] && y->y[1]->has_or)){ //only case we cannot accept is inverted and has_or
 				yig_value* temp3 = copy_yv_chain(y,false);
 				temp3->and_func_up = true; //copied values will have false set, AND vals don't care about AND_FUNC_UP
@@ -359,6 +365,19 @@ void build_yv(yig *y) {
 			y->y[1]->fanout--;
 			y->has_or = true; //update has_or only if not inverted
 		}
+		if (y->type[0] == 'n'){
+		if (y->y[0]->fanout == 0 && !y->y[0]->output){
+			clean_yig_vals(y->y[0]);
+			y->y[0]->clean = true;
+		}
+		}
+		if (y->type[1] == 'n'){
+		if (y->y[1]->fanout == 0 && !y->y[1]->output){
+			clean_yig_vals(y->y[1]);
+			y->y[1]->clean = true;
+		}
+		}
+		//cout << "Yig size: " << y->size << endl;
 		}
 	}
 	y->opt = true;

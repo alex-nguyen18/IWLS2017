@@ -2,7 +2,7 @@
 using std::string;
 
 struct yig_value {
-	char inp[10];
+	char inp[6];
 	bool neg = false;
 	yig_value *yv = NULL;
 	bool and_func = true;
@@ -22,4 +22,6 @@ struct yig {
 	bool and_func = true; // true if an AND
 	bool neg = false;
 	bool has_or = false;
+	bool clean = false;
+	bool output = false;
 }; 

@@ -295,6 +295,7 @@ void build_yv(yig *y) {
 		}
 		bool or0 = false;
 		yig_value* or_yv;
+		if(y->size <= 100){
 		if(y->type[0] == 'n' && y->and_func && y->y[0]->and_func){ //AND_FUNC, Y[0]->AND_FUNC, BOTH_POL
 			if(!(!y->pol[0] && y->y[0]->has_or)){ //only case we cannot accept is inverted and has_or
 				yig_value* temp3 = copy_yv_chain(y,true);
@@ -357,6 +358,7 @@ void build_yv(yig *y) {
 			y->size = y->size + y->y[1]->size - 1; //if this is an or, it should already have the +1, so we need to remove one
 			y->y[1]->fanout--;
 			y->has_or = true; //update has_or only if not inverted
+		}
 		}
 	}
 	y->opt = true;
